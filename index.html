@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AwakenX - Din personlige AI-coach</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --secondary: #1e40af;
+            --bg: #f8fafc;
+            --text: #1e293b;
+            --light: #e2e8f0;
+            --success: #10b981;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            padding: 2rem;
+            text-align: center;
+        }
+        
+        header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        header p {
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+            flex: 1;
+        }
+        
+        .user-input {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .user-input input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            border: 2px solid var(--light);
+            border-radius: 0.5rem;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        
+        .user-input input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+        
+        .user-input button {
+            padding: 0.75rem 1.5rem;
+            background: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+        
+        .user-input button:hover {
+            background: var(--secondary);
+        }
+        
+        .user-input button:disabled {
+            background: var(--light);
+            cursor: not-allowed;
+        }
+        
+        .chat-container {
+            background: white;
+            border-radius: 0.75rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        
+        .chat-message {
+            margin-bottom: 1.25rem;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            line-height: 1.6;
+        }
+        
+        .chat-message.user {
+            background: var(--light);
+            margin-left: 2rem;
+            border-top-right-radius: 0;
+        }
+        
+        .chat-message.agent {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            margin-right: 2rem;
+            border-top-left-radius: 0;
+        }
+        
+        .chat-message.system {
+            background: #fef3c7;
+            text-align: center;
+            font-size: 0.875rem;
+            color: #92400e;
+            padding: 0.5rem;
+        }
+        
+        .typing-indicator {
+            display: inline-flex;
+            gap: 0.25rem;
+            padding: 0.5rem;
+        }
+        
+        .typing-indicator span {
+            width: 0.5rem;
+            height: 0.5rem;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        
+        .typing-indicator span:nth-child(1) { animation-delay: -0.32s; }
+        .typing-indicator span:nth-child(2) { animation-delay: -0.16s; }
+        
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
+        
+        .session-controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .session-controls button {
+            padding: 0.5rem 1rem;
+            background: #ef4444;
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: background 0.2s;
+        }
+        
+        .session-controls button:hover {
+            background: #dc2626;
+        }
+        
+        .info-box {
+            background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-left: 4px solid var(--primary);
+        }
+        
+        .info-box h3 {
+            margin-bottom: 0.5rem;
+            color: var(--secondary);
+        }
+        
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: #64748b;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>AwakenX</h1>
+        <p>Din personlige AI-coach med hukommelse</p>
+    </header>
+    
+    <div class="container">
+        <div class="info-box">
+            <h3>💡 Sådan virker det:</h3>
+            <p>Start en samtale med AwakenX. Din hukommelse gemmes automatisk, så AwakenX husker dig næste gang.</p>
+        </div>
+        
+        <div class="user-input">
+            <input 
+                type="text" 
+                id="userIdInput" 
+                placeholder="Dit bruger-ID (f.eks. ditnavn)" 
+                value=""
+            >
+            <input 
+                type="text" 
+                id="messageInput" 
+                placeholder="Skriv din besked her..." 
+                onkeypress="if(event.key === 'Enter') sendMessage()"
+            >
+            <button onclick="sendMessage()" id="sendButton">Send</button>
+        </div>
+        
+        <div class="session-controls">
+            <button onclick="endSession()">Afslut session</button>
+            <button onclick="resetSession()">Nulstil session</button>
+        </div>
+        
+        <div class="chat-container" id="chatContainer">
+            <div class="chat-message system">
+                Vælg et bruger-ID og skriv en besked for at starte.
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>AwakenX v1.0 | Mistral AI</p>
+    </footer>
+    
+    <script>
+        const API_BASE = window.location.origin || 'http://localhost:8000';
+        let currentUserId = '';
+        
+        // Hent bruger-ID fra localStorage
+        const savedUserId = localStorage.getItem('awakenx_user_id');
+        if (savedUserId) {
+            document.getElementById('userIdInput').value = savedUserId;
+            currentUserId = savedUserId;
+        }
+        
+        function addMessage(content, type) {
+            const chatContainer = document.getElementById('chatContainer');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+            messageDiv.textContent = content;
+            chatContainer.appendChild(messageDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        function showTyping() {
+            const chatContainer = document.getElementById('chatContainer');
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'chat-message agent';
+            typingDiv.id = 'typingIndicator';
+            typingDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+            chatContainer.appendChild(typingDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+        
+        function hideTyping() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+        
+        async function sendMessage() {
+            const userIdInput = document.getElementById('userIdInput');
+            const messageInput = document.getElementById('messageInput');
+            const sendButton = document.getElementById('sendButton');
+            
+            const userId = userIdInput.value.trim();
+            const message = messageInput.value.trim();
+            
+            if (!userId) {
+                alert('Venligst indtast et bruger-ID');
+                return;
+            }
+            
+            if (!message) {
+                return;
+            }
+            
+            // Gem bruger-ID
+            currentUserId = userId;
+            localStorage.setItem('awakenx_user_id', userId);
+            
+            // Deaktivér knapper
+            sendButton.disabled = true;
+            messageInput.disabled = true;
+            
+            // Vis brugerbesked
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Vis typing-indikator
+            showTyping();
+            
+            try {
+                const response = await fetch(`${API_BASE}/chat/${encodeURIComponent(userId)}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ message: message })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API-fejl: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                hideTyping();
+                addMessage(data.reply, 'agent');
+                
+            } catch (error) {
+                hideTyping();
+                addMessage(`Fejl: ${error.message}`, 'system');
+                console.error('Fejl:', error);
+            } finally {
+                sendButton.disabled = false;
+                messageInput.disabled = false;
+                messageInput.focus();
+            }
+        }
+        
+        async function endSession() {
+            if (!currentUserId) {
+                alert('Venligst indtast et bruger-ID først');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/end/${encodeURIComponent(currentUserId)}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    addMessage('Session afsluttet. Hukommelse gemt.', 'system');
+                }
+            } catch (error) {
+                addMessage(`Fejl ved afslutning: ${error.message}`, 'system');
+            }
+        }
+        
+        async function resetSession() {
+            if (!currentUserId) {
+                alert('Venligst indtast et bruger-ID først');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`${API_BASE}/reset/${encodeURIComponent(currentUserId)}`, {
+                    method: 'POST'
+                });
+                
+                if (response.ok) {
+                    addMessage('Session nulstillet.', 'system');
+                }
+            } catch (error) {
+                addMessage(`Fejl ved nulstilling: ${error.message}`, 'system');
+            }
+        }
+        
+        // Auto-focus på message input
+        document.getElementById('messageInput').addEventListener('focus', function() {
+            if (!document.getElementById('userIdInput').value) {
+                document.getElementById('userIdInput').focus();
+            }
+        });
+    </script>
+</body>
+</html>
