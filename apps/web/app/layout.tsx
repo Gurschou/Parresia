@@ -13,6 +13,8 @@ export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="da">
       <body>
+        <div className="aurora" />
+        <div className="grain" />
         <div className="shell">
           <Sidebar />
           <main className="main">{children}</main>

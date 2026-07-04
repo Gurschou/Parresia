@@ -15,7 +15,45 @@ interface EmotionSummary {
   clarity: number;
 }
 
-/** Render **bold** markers from agent output as accent-colored strong text. */
+const SUGGESTIONS = [
+  {
+    label: "Mønster",
+    text: "Jeg udskyder en svær samtale med min chef – igen. Hvorfor gør jeg det?",
+  },
+  {
+    label: "Beslutning",
+    text: "Skal jeg sige ja til det nye job, eller blive hvor jeg er?",
+  },
+  {
+    label: "Klarhed",
+    text: "Jeg føler mig overvældet og ved ikke, hvor jeg skal starte.",
+  },
+  {
+    label: "Refleksion",
+    text: "Hvad har mine sidste uger egentlig handlet om?",
+  },
+];
+
+const EMOTION_DA: Record<string, string> = {
+  joy: "glæde",
+  sadness: "tristhed",
+  anger: "vrede",
+  fear: "frygt",
+  surprise: "overraskelse",
+  disgust: "afsky",
+  trust: "tillid",
+  anticipation: "forventning",
+  neutral: "neutral",
+};
+
+function signalColor(value: number, invert = false): string {
+  const v = invert ? 1 - value : value;
+  if (v >= 0.65) return "var(--positive)";
+  if (v < 0.4) return "var(--negative)";
+  return "var(--warning)";
+}
+
+/** Render **bold** markers from agent output as gradient strong text. */
 function renderContent(content: string) {
   const parts = content.split(/(\*\*[^*]+\*\*)/g);
   return parts.map((part, i) =>
@@ -34,6 +72,7 @@ export default function ChatPage() {
   const [busy, setBusy] = useState(false);
   const [emotion, setEmotion] = useState<EmotionSummary | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -42,44 +81,48 @@ export default function ChatPage() {
     });
   }, [messages, busy]);
 
-  const send = useCallback(async () => {
-    const text = input.trim();
-    if (!text || busy) return;
-    setInput("");
-    setBusy(true);
-    setMessages((prev) => [...prev, { role: "user", content: text }]);
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ sessionId, message: text }),
-      });
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data?.error?.message ?? "Ukendt fejl");
+  const send = useCallback(
+    async (override?: string) => {
+      const text = (override ?? input).trim();
+      if (!text || busy) return;
+      setInput("");
+      setBusy(true);
+      setMessages((prev) => [...prev, { role: "user", content: text }]);
+      try {
+        const response = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ sessionId, message: text }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data?.error?.message ?? "Ukendt fejl");
+        }
+        setSessionId(data.sessionId);
+        if (data.emotion) setEmotion(data.emotion);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.reply.content,
+            agent: data.reply.agent,
+          },
+        ]);
+      } catch (error) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: `Noget gik galt: ${error instanceof Error ? error.message : error}`,
+          },
+        ]);
+      } finally {
+        setBusy(false);
+        textareaRef.current?.focus();
       }
-      setSessionId(data.sessionId);
-      if (data.emotion) setEmotion(data.emotion);
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: data.reply.content,
-          agent: data.reply.agent,
-        },
-      ]);
-    } catch (error) {
-      setMessages((prev) => [
-        ...prev,
-        {
-          role: "assistant",
-          content: `Noget gik galt: ${error instanceof Error ? error.message : error}`,
-        },
-      ]);
-    } finally {
-      setBusy(false);
-    }
-  }, [input, busy, sessionId]);
+    },
+    [input, busy, sessionId],
+  );
 
   const endSession = useCallback(async () => {
     if (!sessionId || busy) return;
@@ -122,18 +165,43 @@ export default function ChatPage() {
   return (
     <>
       <div className="chat-header">
-        <div className="emotion-chip">
-          {emotion ? (
-            <>
-              <span>tilstand: {emotion.primaryEmotion}</span>
-              <span>stress {Math.round(emotion.stress * 100)}%</span>
-              <span>energi {Math.round(emotion.energy * 100)}%</span>
-              <span>klarhed {Math.round(emotion.clarity * 100)}%</span>
-            </>
-          ) : (
-            <span>SYNAPSE lytter med på tone, energi og mønstre</span>
-          )}
-        </div>
+        {emotion ? (
+          <div className="emotion-chips">
+            <span className="chip">
+              <span
+                className="chip-dot"
+                style={{ background: "var(--accent)" }}
+              />
+              {EMOTION_DA[emotion.primaryEmotion] ?? emotion.primaryEmotion}
+            </span>
+            <span className="chip">
+              <span
+                className="chip-dot"
+                style={{ background: signalColor(emotion.stress, true) }}
+              />
+              stress <strong>{Math.round(emotion.stress * 100)}%</strong>
+            </span>
+            <span className="chip">
+              <span
+                className="chip-dot"
+                style={{ background: signalColor(emotion.energy) }}
+              />
+              energi <strong>{Math.round(emotion.energy * 100)}%</strong>
+            </span>
+            <span className="chip">
+              <span
+                className="chip-dot"
+                style={{ background: signalColor(emotion.clarity) }}
+              />
+              klarhed <strong>{Math.round(emotion.clarity * 100)}%</strong>
+            </span>
+          </div>
+        ) : (
+          <span className="listening">
+            <span className="listening-dot" />
+            SYNAPSE lytter med på tone, energi og mønstre
+          </span>
+        )}
         {sessionId ? (
           <button className="btn btn-ghost" onClick={endSession} disabled={busy}>
             Afslut session
@@ -143,12 +211,27 @@ export default function ChatPage() {
 
       <div className="chat-scroll" ref={scrollRef}>
         {messages.length === 0 ? (
-          <div className="empty-state" style={{ marginTop: "18vh" }}>
-            <h1>Hvad fylder lige nu?</h1>
+          <div className="empty-state" style={{ marginTop: "13vh" }}>
+            <div className="empty-kicker">Mental · Emotionel · Beslutning</div>
+            <h1>
+              Hvad fylder <span className="gradient-text">lige nu?</span>
+            </h1>
             <p>
               SYNAPSE er ikke en chatbot. Den spørger, udfordrer og genkender
               dine mønstre — og hjælper dig med at handle på dem.
             </p>
+            <div className="suggestions">
+              {SUGGESTIONS.map((suggestion) => (
+                <button
+                  key={suggestion.label}
+                  className="suggestion"
+                  onClick={() => void send(suggestion.text)}
+                >
+                  <span className="suggestion-label">{suggestion.label}</span>
+                  {suggestion.text}
+                </button>
+              ))}
+            </div>
           </div>
         ) : (
           <div className="chat-column">
@@ -158,16 +241,27 @@ export default function ChatPage() {
                 className={`msg ${message.role === "user" ? "msg-user" : "msg-assistant"}`}
               >
                 <div className="msg-meta">
-                  {message.role === "user"
-                    ? "Dig"
-                    : `SYNAPSE${message.agent ? ` · ${message.agent}` : ""}`}
+                  {message.role === "user" ? (
+                    "Dig"
+                  ) : (
+                    <>
+                      <span className="avatar-orb" />
+                      SYNAPSE
+                      {message.agent ? (
+                        <span className="agent-tag">{message.agent}</span>
+                      ) : null}
+                    </>
+                  )}
                 </div>
                 <div className="msg-body">{renderContent(message.content)}</div>
               </div>
             ))}
             {busy ? (
               <div className="msg msg-assistant">
-                <div className="msg-meta">SYNAPSE</div>
+                <div className="msg-meta">
+                  <span className="avatar-orb" />
+                  SYNAPSE
+                </div>
                 <div className="thinking">
                   <span />
                   <span />
@@ -182,6 +276,7 @@ export default function ChatPage() {
       <div className="composer-wrap">
         <div className="composer">
           <textarea
+            ref={textareaRef}
             rows={1}
             value={input}
             placeholder="Skriv til SYNAPSE…"
@@ -200,6 +295,10 @@ export default function ChatPage() {
           >
             Send
           </button>
+        </div>
+        <div className="composer-hint">
+          <kbd>Enter</kbd> for at sende · <kbd>Shift</kbd> + <kbd>Enter</kbd>{" "}
+          for ny linje
         </div>
       </div>
     </>

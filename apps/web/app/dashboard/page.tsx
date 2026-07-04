@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface Metrics {
   growthScore: number;
@@ -38,11 +38,116 @@ const METRIC_LABELS: { key: keyof Metrics; label: string; invert?: boolean }[] =
   { key: "stress", label: "Stress", invert: true },
 ];
 
+const CATEGORY_DA: Record<string, string> = {
+  "self-sabotage": "selvsabotage",
+  stress: "stress",
+  emotional: "emotionelt",
+  decision: "beslutning",
+  habit: "vane",
+  bias: "bias",
+  relational: "relationelt",
+};
+
 function barClass(value: number, invert?: boolean): string {
   const effective = invert ? 100 - value : value;
   if (effective >= 70) return "bar-fill good";
   if (effective < 40) return "bar-fill bad";
   return "bar-fill";
+}
+
+/** Animate a number from 0 to its target once it becomes known. */
+function useCountUp(target: number | null, durationMs = 900): number {
+  const [value, setValue] = useState(0);
+  const frame = useRef<number | null>(null);
+  useEffect(() => {
+    if (target === null) return;
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / durationMs, 1);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setValue(Math.round(target * eased));
+      if (t < 1) frame.current = requestAnimationFrame(tick);
+    };
+    frame.current = requestAnimationFrame(tick);
+    return () => {
+      if (frame.current !== null) cancelAnimationFrame(frame.current);
+    };
+  }, [target, durationMs]);
+  return value;
+}
+
+function GrowthRing({ score }: { score: number }) {
+  const displayed = useCountUp(score, 1200);
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setProgress(score));
+    return () => cancelAnimationFrame(id);
+  }, [score]);
+  const radius = 62;
+  const circumference = 2 * Math.PI * radius;
+  return (
+    <div className="ring-wrap">
+      <svg width="148" height="148" viewBox="0 0 148 148">
+        <defs>
+          <linearGradient id="ringGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#a78bfa" />
+            <stop offset="50%" stopColor="#818cf8" />
+            <stop offset="100%" stopColor="#22d3ee" />
+          </linearGradient>
+        </defs>
+        <circle
+          className="ring-track"
+          cx="74"
+          cy="74"
+          r={radius}
+          fill="none"
+          strokeWidth="9"
+        />
+        <circle
+          className="ring-value"
+          cx="74"
+          cy="74"
+          r={radius}
+          fill="none"
+          strokeWidth="9"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - progress / 100)}
+        />
+      </svg>
+      <div className="ring-center">
+        <span className="ring-number gradient-text">{displayed}</span>
+        <span className="ring-label">Growth Score</span>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  invert,
+  index,
+}: {
+  label: string;
+  value: number;
+  invert?: boolean;
+  index: number;
+}) {
+  const displayed = useCountUp(value);
+  const [width, setWidth] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setWidth(value));
+    return () => cancelAnimationFrame(id);
+  }, [value]);
+  return (
+    <div className="metric-card" style={{ animationDelay: `${index * 45}ms` }}>
+      <div className="metric-label">{label}</div>
+      <div className="metric-value">{displayed}</div>
+      <div className="bar">
+        <div className={barClass(value, invert)} style={{ width: `${width}%` }} />
+      </div>
+    </div>
+  );
 }
 
 export default function DashboardPage() {
@@ -76,60 +181,71 @@ export default function DashboardPage() {
         </p>
 
         {loading ? (
-          <p className="muted">Henter…</p>
+          <>
+            <div className="skeleton" style={{ height: 216, marginBottom: 18 }} />
+            <div className="metric-grid">
+              {Array.from({ length: 6 }, (_, i) => (
+                <div className="skeleton" key={i} style={{ height: 118 }} />
+              ))}
+            </div>
+          </>
         ) : metrics ? (
-          <div className="metric-grid">
-            <div className="metric-card hero">
-              <div>
-                <div className="metric-label">Growth Score</div>
-                <div className="metric-value hero-value">
-                  {metrics.growthScore}
-                </div>
-              </div>
-              <div style={{ flex: 1 }}>
-                <div className="bar" style={{ height: 6 }}>
-                  <div
-                    className={barClass(metrics.growthScore)}
-                    style={{ width: `${metrics.growthScore}%` }}
-                  />
-                </div>
+          <>
+            <div className="hero-card">
+              <GrowthRing score={metrics.growthScore} />
+              <div className="hero-copy">
+                <h2>Din samlede udvikling</h2>
+                <p>
+                  Growth Score vægter mental og emotionel performance,
+                  beslutningskvalitet, refleksion, læringshastighed og
+                  identitets-alignment. Den stiger, når du arbejder med dine
+                  mønstre — ikke når du blot taler om dem.
+                </p>
               </div>
             </div>
-            {METRIC_LABELS.map(({ key, label, invert }) => (
-              <div className="metric-card" key={key}>
-                <div className="metric-label">{label}</div>
-                <div className="metric-value">{metrics[key]}</div>
-                <div className="bar">
-                  <div
-                    className={barClass(metrics[key], invert)}
-                    style={{ width: `${metrics[key]}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+            <div className="metric-grid">
+              {METRIC_LABELS.map(({ key, label, invert }, index) => (
+                <MetricCard
+                  key={key}
+                  label={label}
+                  value={metrics[key]}
+                  invert={invert}
+                  index={index}
+                />
+              ))}
+            </div>
+          </>
         ) : null}
 
         <div className="section-title">Dine mønstre</div>
-        {patterns.length === 0 ? (
+        {loading ? (
+          <div className="skeleton" style={{ height: 96 }} />
+        ) : patterns.length === 0 ? (
           <p className="muted">
             Ingen mønstre endnu. Mønstre opdages efterhånden som du taler med
             SYNAPSE — og hvert mønster forklares med et hvorfor.
           </p>
         ) : (
-          patterns.map((pattern) => (
-            <div className="pattern-card" key={pattern.id}>
+          patterns.map((pattern, index) => (
+            <div
+              className="pattern-card"
+              key={pattern.id}
+              style={{ animationDelay: `${index * 60}ms` }}
+            >
               <div className="pattern-head">
                 <span className="pattern-label">{pattern.label}</span>
                 <span className="tag">
-                  {pattern.category} · {Math.round(pattern.confidence * 100)}% ·
-                  set {pattern.occurrences}x
+                  {CATEGORY_DA[pattern.category] ?? pattern.category} ·{" "}
+                  {Math.round(pattern.confidence * 100)}% · set{" "}
+                  {pattern.occurrences}x
                 </span>
               </div>
-              <div className="pattern-why">Hvorfor: {pattern.why}</div>
+              <div className="pattern-why">
+                <b>Hvorfor:</b> {pattern.why}
+              </div>
               {pattern.suggestedShift ? (
                 <div className="pattern-shift">
-                  Skifte: {pattern.suggestedShift}
+                  <b>Skifte:</b> {pattern.suggestedShift}
                 </div>
               ) : null}
             </div>
