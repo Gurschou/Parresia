@@ -30,6 +30,11 @@ describe("BriefingEngine", () => {
           "Jeg spillede godt men tabte alligevel, og jeg ved ikke helt hvorfor det stadig fylder.",
         anbefalet_fokus_for_session:
           "Luk weekendens kamp mentalt, før I går videre til nyt fokus.",
+        atlet_rapport: {
+          indsigt: "Det er historien om nederlaget, ikke nederlaget selv, der fylder.",
+          naeste_skridt: "Skriv tre ting ned, du gjorde rigtigt i kampen.",
+          spoergsmaal: "Hvad ville du sige til en holdkammerat i samme situation?",
+        },
       }),
     );
     const briefing = unwrap(
@@ -46,6 +51,23 @@ describe("BriefingEngine", () => {
     expect(briefing.flags[0]?.belaeg).toContain("stadig fylder");
     expect(briefing.citat).toContain("spillede godt");
     expect(briefing.akut).toBe(false);
+    expect(briefing.atletRapport.indsigt).toContain("historien om nederlaget");
+    expect(briefing.atletRapport.naesteSkridt).toContain("tre ting");
+    expect(briefing.atletRapport.spoergsmaal).toContain("holdkammerat");
+  });
+
+  it("defaults the athlete report to empty strings when missing", async () => {
+    const engine = new BriefingEngine(
+      routerWith({ kerneindsigt: "x", citat: "y", anbefalet_fokus_for_session: "z" }),
+    );
+    const briefing = unwrap(
+      await engine.generate({ userId: "u1", athleteName: "A", transcript: "…" }),
+    );
+    expect(briefing.atletRapport).toEqual({
+      indsigt: "",
+      naesteSkridt: "",
+      spoergsmaal: "",
+    });
   });
 
   it("sorts akut flags first and sets the akut bit", async () => {

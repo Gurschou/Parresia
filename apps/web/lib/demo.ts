@@ -95,6 +95,14 @@ const BRIEFING_JSON = JSON.stringify({
     "Jeg spillede godt men tabte alligevel, og jeg ved ikke helt hvorfor det stadig fylder.",
   anbefalet_fokus_for_session:
     "Brug første del af sessionen på at lukke weekendens kamp mentalt, før I går videre til nyt fokus — ellers arbejder den uforløste følelse videre i baggrunden.",
+  atlet_rapport: {
+    indsigt:
+      "Det, der holder dig vågen, er ikke nederlaget — det er historien om, at du 'ikke var god nok til at lukke den'. Du spillede godt. De to ting kan begge være sande.",
+    naeste_skridt:
+      "Skriv i aften tre ting ned, du gjorde rigtigt i kampen — før du ser video eller analyserer noget som helst.",
+    spoergsmaal:
+      "Hvis din holdkammerat havde spillet din kamp — ville du så sige, at han ikke var god nok?",
+  },
 });
 
 export function createDemoRouter(): ModelRouter {

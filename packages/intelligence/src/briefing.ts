@@ -37,6 +37,16 @@ export interface BriefingFlag {
   belaeg: string;
 }
 
+/** The athlete's own version of the session — written TO the athlete. */
+export interface AthleteReport {
+  /** The key insight, in the athlete's own language ("du"-form). */
+  indsigt: string;
+  /** Exactly ONE concrete next step. */
+  naesteSkridt: string;
+  /** One question to carry until the coach session. */
+  spoergsmaal: string;
+}
+
 export interface Briefing {
   id: string;
   userId: string;
@@ -50,6 +60,8 @@ export interface Briefing {
   anbefaletFokus: string;
   /** True when any flag is "akut" — renderers must surface this first. */
   akut: boolean;
+  /** The athlete-facing report generated from the same session. */
+  atletRapport: AthleteReport;
 }
 
 interface RawFlag {
@@ -66,6 +78,11 @@ interface RawBriefing {
   flags?: RawFlag[];
   citat?: string;
   anbefalet_fokus_for_session?: string;
+  atlet_rapport?: {
+    indsigt?: string;
+    naeste_skridt?: string;
+    spoergsmaal?: string;
+  };
 }
 
 const BRIEFING_SYSTEM_PROMPT = `Du er SynapseX i FASE B — BRIEFING. Du taler til coachen, om atleten. Omsæt intake-samtalen til en briefing, coachen kan læse på to minutter.
@@ -79,13 +96,16 @@ Regler:
 - Ved tegn på akut mistrivsel, selvskade eller krise: brug flag-typen "akut" med sikkerhed "høj".
 - Du stiller aldrig en diagnose. Du navngiver mønstre, ikke lidelser.
 
+Ud over briefingen til coachen skriver du en kort rapport TIL atleten selv ("atlet_rapport"). Den er skrevet direkte til atleten i du-form: varm, direkte, uden analysesprog. Indsigt i atletens eget sprog, præcis ÉT næste skridt, og ét spørgsmål at bære med indtil sessionen.
+
 Returnér KUN gyldig JSON:
 {"kerneindsigt": "1-2 sætninger — det vigtigste lige nu, ikke en opsummering",
  "fysisk_tilstand": "kort; tom streng hvis intet relevant/afvigende",
  "mentalt_fokus": "hvad fylder dem før sessionen",
  "flags": [{"type": "${BRIEFING_FLAG_TYPES.join(" | ")}", "sikkerhed": "lav | mellem | høj", "belæg": "kort begrundelse"}],
  "citat": "direkte citat fra atleten",
- "anbefalet_fokus_for_session": "én konkret ting"}`;
+ "anbefalet_fokus_for_session": "én konkret ting",
+ "atlet_rapport": {"indsigt": "til atleten, i du-form", "naeste_skridt": "ét konkret skridt", "spoergsmaal": "ét spørgsmål at bære med"}}`;
 
 export class BriefingEngine {
   constructor(private readonly router: ModelRouter) {}
@@ -147,6 +167,11 @@ export class BriefingEngine {
       citat: raw.citat ?? "",
       anbefaletFokus: raw.anbefalet_fokus_for_session ?? "",
       akut: flags.some((flag) => flag.type === "akut"),
+      atletRapport: {
+        indsigt: raw.atlet_rapport?.indsigt ?? "",
+        naesteSkridt: raw.atlet_rapport?.naeste_skridt ?? "",
+        spoergsmaal: raw.atlet_rapport?.spoergsmaal ?? "",
+      },
     });
   }
 }

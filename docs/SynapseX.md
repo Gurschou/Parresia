@@ -47,7 +47,7 @@ Readable (what the coach sees) and structured (what is stored) — both carry:
 
 ## v1 decisions (from the open questions)
 
-1. **Ser atleten briefingen?** Athlete sees a confirmation that the briefing was sent; the full briefing lives in the coach view. (In the current single-user app both views are reachable; role-based access lands with auth in Phase 2.)
+1. **Ser atleten briefingen?** The athlete presses "Afsend briefing til coach" when the session feels done. The same generation produces **two reports**: the analytical coach briefing, and an athlete-facing report (`atletRapport`) written in du-form — one insight, exactly one next step, one question to carry. The athlete sees their own report immediately; the coach version lives in the coach view. (Role-based access lands with auth in Phase 2.)
 2. **Hyppighed** — one briefing per intake session; nothing stops multiple intakes per day.
 3. **Flag-taxonomi** — EDO's six categories + `akut` retained as scaffolding; easy to replace (single const in `briefing.ts`).
 4. **Data over tid** — yes: briefings persist per athlete, and the last 3 core insights are fed into both intake and briefing generation so recurring themes can be flagged ("tredje gang på to uger han nævner søvn").

@@ -25,6 +25,11 @@ interface Briefing {
   citat: string;
   anbefaletFokus: string;
   akut: boolean;
+  atletRapport: {
+    indsigt: string;
+    naesteSkridt: string;
+    spoergsmaal: string;
+  };
 }
 
 const OPENING =
@@ -106,8 +111,8 @@ export default function IntakePage() {
           SynapseX · Intake — samtalen bliver til en briefing, din coach læser
         </span>
         {sessionId && !briefing ? (
-          <button className="btn btn-ghost" onClick={endIntake} disabled={busy}>
-            Afslut intake → briefing
+          <button className="btn btn-primary" onClick={endIntake} disabled={busy}>
+            Afsend briefing til coach
           </button>
         ) : null}
       </div>
@@ -150,14 +155,35 @@ export default function IntakePage() {
             <div className="briefing-card" style={{ marginTop: 8 }}>
               <div className="briefing-head">
                 <span>
-                  BRIEFING — {briefing.athleteName} —{" "}
+                  DIN RAPPORT — {briefing.athleteName} —{" "}
                   {new Date(briefing.createdAt).toLocaleDateString("da-DK")}
                 </span>
-                <span className="tag tag-x">sendt til din coach</span>
+                <span className="tag tag-x">briefing sendt til din coach ✓</span>
               </div>
-              <p className="muted" style={{ marginBottom: 10 }}>
-                Intaken er afsluttet. Din coach læser denne briefing før jeres
-                session.
+
+              {briefing.atletRapport.indsigt ? (
+                <div className="briefing-section">
+                  <div className="briefing-section-title">Din indsigt</div>
+                  {briefing.atletRapport.indsigt}
+                </div>
+              ) : null}
+
+              {briefing.atletRapport.spoergsmaal ? (
+                <blockquote className="briefing-quote">
+                  {briefing.atletRapport.spoergsmaal}
+                </blockquote>
+              ) : null}
+
+              {briefing.atletRapport.naesteSkridt ? (
+                <div className="briefing-focus">
+                  <div className="briefing-section-title">Dit næste skridt</div>
+                  {briefing.atletRapport.naesteSkridt}
+                </div>
+              ) : null}
+
+              <p className="muted" style={{ margin: "16px 0 12px" }}>
+                Din coach har fået sin egen version med kerneindsigt, flags og
+                anbefalet fokus til jeres session.
               </p>
               <Link href="/briefings" className="btn">
                 Se coach-visningen →
