@@ -33,6 +33,12 @@ cp apps/web/.env.example apps/web/.env.local   # add at least one API key
 pnpm dev            # http://localhost:3000
 ```
 
+Want to see the full experience without API keys? Run demo mode — scripted, realistic engine output through the real orchestration pipeline:
+
+```bash
+SYNAPSE_DEMO=1 pnpm dev
+```
+
 ## Commands
 
 ```bash

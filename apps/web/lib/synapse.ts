@@ -11,6 +11,7 @@ import { createModelRouter } from "@synapse/ai";
 import { FileMemoryStore, MemoryEngine } from "@synapse/memory";
 import { SynapseOrchestrator } from "@synapse/agents";
 import { FilePatternRepository } from "./file-pattern-repository.js";
+import { createDemoRouter } from "./demo.js";
 
 export interface SynapseRuntime {
   orchestrator: SynapseOrchestrator;
@@ -26,7 +27,8 @@ export function getSynapse(): SynapseRuntime {
   const events = new InProcessEventBus((event, error) =>
     console.error(`[synapse] event handler failed for ${event}:`, error),
   );
-  const router = createModelRouter();
+  const router =
+    process.env.SYNAPSE_DEMO === "1" ? createDemoRouter() : createModelRouter();
   const memory = new MemoryEngine(new FileMemoryStore(dataDir), events);
   const patterns = new FilePatternRepository(dataDir);
   const orchestrator = new SynapseOrchestrator({
