@@ -72,10 +72,43 @@ const DECISION_REPLY = JSON.stringify({
   reflectionQuestion: "Hvad ville du vælge, hvis du vidste, at ingen ville dømme dig for det?",
 });
 
+const INTAKE_REPLIES = [
+  "Hvad holdt dig vågen?",
+  `Du siger "jeg ved ikke helt hvorfor" — men det gør du. Sæt dig op, træk vejret dybt tre gange. Hvad var det, lige i det øjeblik I tabte — ikke i går, ikke bagefter, i det øjeblik — hvad tænkte du om dig selv?`,
+  "Der er den. Ikke nederlaget — historien du fortæller dig selv om, hvad det betyder. Er det sandt, eller er det bare den historie, der er lettest at gribe fat i lige nu? Beslut dig: hvem vil du være i næste kamp — og hvad er det første, du gør i morgen for at leve det?",
+];
+
+const BRIEFING_JSON = JSON.stringify({
+  kerneindsigt:
+    "Nederlaget i weekenden er ikke bearbejdet — atleten spillede godt, men det uforløste 'hvorfor tabte jeg alligevel' holder ham vågen om natten.",
+  fysisk_tilstand: "Dårlig søvn i nat, oplevet træthed.",
+  mentalt_fokus:
+    "Fastholdt af et nederlag, der ikke matcher oplevet præstationsniveau — kognitiv dissonans mellem 'spillede godt' og 'tabte'.",
+  flags: [
+    {
+      type: "retningsløs-stilhed",
+      sikkerhed: "mellem",
+      belæg: "Atleten har ikke selv en klar årsag, kun at det 'stadig fylder'.",
+    },
+  ],
+  citat:
+    "Jeg spillede godt men tabte alligevel, og jeg ved ikke helt hvorfor det stadig fylder.",
+  anbefalet_fokus_for_session:
+    "Brug første del af sessionen på at lukke weekendens kamp mentalt, før I går videre til nyt fokus — ellers arbejder den uforløste følelse videre i baggrunden.",
+});
+
 export function createDemoRouter(): ModelRouter {
   return new ModelRouter([
     new MockModel({
       coaching: COACH_REPLY,
+      intake: (request) => {
+        const turns = request.messages.filter((m) => m.role === "user").length;
+        return (
+          INTAKE_REPLIES[Math.min(turns - 1, INTAKE_REPLIES.length - 1)] ??
+          INTAKE_REPLIES[0]!
+        );
+      },
+      briefing: BRIEFING_JSON,
       "decision-analysis": DECISION_REPLY,
       fast: (request) =>
         JSON.stringify({

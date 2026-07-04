@@ -19,6 +19,7 @@ Pattern Detection → Pattern Understanding → Pattern Shift
 | Intelligence engines (emotional, pattern, decision, coach, reflection, growth) | `packages/intelligence` | ✅ |
 | Multi-agent system (router, coach, decision agents + orchestrator) | `packages/agents` | ✅ |
 | Web app (chat + dashboard, dark minimal UI, API routes) | `apps/web` | ✅ |
+| SynapseX (atlet → intake → briefing → coach pipeline) | `packages/intelligence` + `packages/agents` + `apps/web` | ✅ |
 
 The previous Python prototype is preserved unchanged under `legacy/awakenx-prototype/`.
 
@@ -72,5 +73,6 @@ Full documentation lives in [`docs/`](docs/):
 - [API.md](docs/API.md) — HTTP API reference
 - [Memory.md](docs/Memory.md) — memory layers and recall ranking
 - [Agents.md](docs/Agents.md) — the multi-agent system
+- [SynapseX.md](docs/SynapseX.md) — athlete intake → coach briefing pipeline
 - [Development.md](docs/Development.md) — working on the codebase
 - [Roadmap.md](docs/Roadmap.md) — planned phases

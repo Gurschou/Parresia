@@ -23,6 +23,8 @@ export type TaskKind =
   | "coding"
   | "fast"
   | "coaching"
+  | "intake"
+  | "briefing"
   | "emotional-analysis"
   | "pattern-analysis"
   | "decision-analysis"

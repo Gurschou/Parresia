@@ -9,12 +9,14 @@ import { join } from "node:path";
 import { InProcessEventBus } from "@synapse/shared";
 import { createModelRouter } from "@synapse/ai";
 import { FileMemoryStore, MemoryEngine } from "@synapse/memory";
-import { SynapseOrchestrator } from "@synapse/agents";
+import { SynapseOrchestrator, SynapseXPipeline } from "@synapse/agents";
 import { FilePatternRepository } from "./file-pattern-repository.js";
+import { FileBriefingRepository } from "./file-briefing-repository.js";
 import { createDemoRouter } from "./demo.js";
 
 export interface SynapseRuntime {
   orchestrator: SynapseOrchestrator;
+  synapsex: SynapseXPipeline;
   memory: MemoryEngine;
   patterns: FilePatternRepository;
 }
@@ -37,7 +39,11 @@ export function getSynapse(): SynapseRuntime {
     patternRepository: patterns,
     events,
   });
-  globalStore.__synapse = { orchestrator, memory, patterns };
+  const synapsex = new SynapseXPipeline(
+    router,
+    new FileBriefingRepository(dataDir),
+  );
+  globalStore.__synapse = { orchestrator, synapsex, memory, patterns };
   return globalStore.__synapse;
 }
 

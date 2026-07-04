@@ -36,6 +36,8 @@ export const defaultRoutingPolicy: RoutingPolicy = {
   coding: ["anthropic", "openai", "mistral", "mock"],
   fast: ["mistral", "google", "openai", "mock"],
   coaching: ["anthropic", "openai", "mistral", "mock"],
+  intake: ["anthropic", "openai", "mistral", "mock"],
+  briefing: ["openai", "anthropic", "mistral", "mock"],
   "emotional-analysis": ["anthropic", "openai", "mistral", "mock"],
   "pattern-analysis": ["anthropic", "openai", "mistral", "mock"],
   "decision-analysis": ["openai", "anthropic", "mistral", "mock"],

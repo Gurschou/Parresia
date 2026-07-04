@@ -21,9 +21,29 @@ const DashboardIcon = (
   </svg>
 );
 
+const BoltIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <path
+      d="M13 2 3 14h7l-1 8 10-12h-7l1-8z"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
+const ClipboardIcon = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+    <rect x="5" y="4" width="14" height="17" rx="2" />
+    <path d="M9 4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2" />
+    <path d="M9 11h6M9 15h4" strokeLinecap="round" />
+  </svg>
+);
+
 const links = [
   { href: "/", label: "Samtale", icon: ChatIcon },
   { href: "/dashboard", label: "Dashboard", icon: DashboardIcon },
+  { href: "/intake", label: "SynapseX · Intake", icon: BoltIcon },
+  { href: "/briefings", label: "Coach-briefings", icon: ClipboardIcon },
 ];
 
 const loop = [
