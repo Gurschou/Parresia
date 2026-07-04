@@ -98,6 +98,10 @@ export class SynapseOrchestrator {
     return this.sessions.get(sessionId)?.messages ?? [];
   }
 
+  hasSession(sessionId: string): boolean {
+    return this.sessions.has(sessionId);
+  }
+
   async handleMessage(
     sessionId: string,
     text: string,
