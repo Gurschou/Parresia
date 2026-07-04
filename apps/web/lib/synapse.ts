@@ -13,6 +13,7 @@ import { SynapseOrchestrator, SynapseXPipeline } from "@synapse/agents";
 import { FilePatternRepository } from "./file-pattern-repository.js";
 import { FileBriefingRepository } from "./file-briefing-repository.js";
 import { createDemoRouter } from "./demo.js";
+import { loadRootEnvFallback } from "./env.js";
 
 export interface SynapseRuntime {
   orchestrator: SynapseOrchestrator;
@@ -25,6 +26,7 @@ const globalStore = globalThis as unknown as { __synapse?: SynapseRuntime };
 
 export function getSynapse(): SynapseRuntime {
   if (globalStore.__synapse) return globalStore.__synapse;
+  loadRootEnvFallback();
   const dataDir = join(process.cwd(), "data");
   const events = new InProcessEventBus((event, error) =>
     console.error(`[synapse] event handler failed for ${event}:`, error),
