@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MicButton } from "./components/mic-button";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -288,6 +289,7 @@ export default function ChatPage() {
               }
             }}
           />
+          <MicButton value={input} onChange={setInput} disabled={busy} />
           <button
             className="btn btn-primary"
             onClick={() => void send()}
@@ -298,7 +300,7 @@ export default function ChatPage() {
         </div>
         <div className="composer-hint">
           <kbd>Enter</kbd> for at sende · <kbd>Shift</kbd> + <kbd>Enter</kbd>{" "}
-          for ny linje
+          for ny linje · tryk på mikrofonen for at tale
         </div>
       </div>
     </>

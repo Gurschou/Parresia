@@ -976,6 +976,43 @@ kbd {
   font-size: 13.5px;
 }
 
+/* ── Mic (voice-to-text) ─────────────────────────────── */
+.mic-btn {
+  padding: 9px 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  align-self: flex-end;
+}
+
+.mic-btn:hover {
+  color: var(--text);
+}
+
+.mic-btn.mic-active {
+  color: #fff;
+  background: linear-gradient(135deg, #fb7185, #f43f5e);
+  border-color: transparent;
+  box-shadow:
+    0 0 0 0 rgba(244, 63, 94, 0.5),
+    0 4px 18px rgba(244, 63, 94, 0.4);
+  animation: micPulse 1.6s ease-out infinite;
+}
+
+@keyframes micPulse {
+  0% {
+    box-shadow:
+      0 0 0 0 rgba(244, 63, 94, 0.45),
+      0 4px 18px rgba(244, 63, 94, 0.4);
+  }
+  100% {
+    box-shadow:
+      0 0 0 14px rgba(244, 63, 94, 0),
+      0 4px 18px rgba(244, 63, 94, 0.4);
+  }
+}
+
 /* ── SynapseX ────────────────────────────────────────── */
 .avatar-orb-x {
   background: linear-gradient(135deg, #fb923c, #f43f5e);

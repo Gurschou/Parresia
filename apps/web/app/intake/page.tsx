@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { MicButton } from "../components/mic-button";
 
 interface ChatMessage {
   role: "user" | "assistant";
@@ -210,6 +211,11 @@ export default function IntakePage() {
               }
             }}
           />
+          <MicButton
+            value={input}
+            onChange={setInput}
+            disabled={busy || Boolean(briefing)}
+          />
           <button
             className="btn btn-primary"
             onClick={() => void send()}
@@ -219,8 +225,8 @@ export default function IntakePage() {
           </button>
         </div>
         <div className="composer-hint">
-          Fase A: SynapseX taler med dig · Fase B: samtalen bliver til en
-          briefing til din coach
+          Fase A: SynapseX taler med dig — skriv eller tryk på mikrofonen og
+          tal · Fase B: samtalen bliver til en briefing til din coach
         </div>
       </div>
     </>
