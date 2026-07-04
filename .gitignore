@@ -1,61 +1,38 @@
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-build/
-develop-eggs/
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
 dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
+.next/
+out/
+*.tsbuildinfo
 
-# Virtual environments
-.env
-.venv
-env/
-venv/
-ENV/
-
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
-*~
-
-# Environment variables
+# Environment variables — never commit secrets
 .env
 .env.local
 .env.*.local
 
-# AwakenX memory (persistent data - do not commit!)
+# Runtime data
+data/
 awakenx_memory/
 
 # Logs
 *.log
 logs/
 
-# OS
+# Test artifacts
+coverage/
+.vitest/
+
+# Python (legacy prototype)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# IDE / OS
+.idea/
+.vscode/
 .DS_Store
 Thumbs.db
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-.nox/
-
-# FastAPI/UVicorn
-uvicorn.pid
