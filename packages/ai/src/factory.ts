@@ -12,9 +12,13 @@ import { MockModel } from "./providers/mock.js";
 
 export interface RouterEnv {
   ANTHROPIC_API_KEY?: string;
+  ANTHROPIC_MODEL?: string;
   OPENAI_API_KEY?: string;
+  OPENAI_MODEL?: string;
   GOOGLE_API_KEY?: string;
+  GOOGLE_MODEL?: string;
   MISTRAL_API_KEY?: string;
+  MISTRAL_MODEL?: string;
   /** Optional OpenAI-compatible open source endpoint (vLLM, Ollama…). */
   OSS_BASE_URL?: string;
   OSS_API_KEY?: string;
@@ -26,17 +30,20 @@ export function createModelRouter(
   policy: RoutingPolicy = defaultRoutingPolicy,
 ): ModelRouter {
   const models = [
-    new AnthropicModel({ apiKey: env.ANTHROPIC_API_KEY }),
+    new AnthropicModel({
+      apiKey: env.ANTHROPIC_API_KEY,
+      model: env.ANTHROPIC_MODEL,
+    }),
     new OpenAiCompatibleModel({
       provider: "openai",
-      model: "gpt-4o",
+      model: env.OPENAI_MODEL ?? "gpt-4o",
       baseUrl: "https://api.openai.com/v1",
       apiKey: env.OPENAI_API_KEY,
     }),
-    new GoogleModel({ apiKey: env.GOOGLE_API_KEY }),
+    new GoogleModel({ apiKey: env.GOOGLE_API_KEY, model: env.GOOGLE_MODEL }),
     new OpenAiCompatibleModel({
       provider: "mistral",
-      model: "mistral-large-latest",
+      model: env.MISTRAL_MODEL ?? "mistral-large-latest",
       baseUrl: "https://api.mistral.ai/v1",
       apiKey: env.MISTRAL_API_KEY,
     }),

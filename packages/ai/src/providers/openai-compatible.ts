@@ -64,9 +64,10 @@ export class OpenAiCompatibleModel implements ChatModel {
         }),
       });
       if (!response.ok) {
+        const body = await response.text().catch(() => "");
         return err(
           new ModelUnavailableError(
-            `${this.provider} responded ${response.status}`,
+            `${this.provider} responded ${response.status}: ${body.slice(0, 300)}`,
           ),
         );
       }

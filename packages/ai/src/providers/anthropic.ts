@@ -27,7 +27,7 @@ export class AnthropicModel implements ChatModel {
     apiKey: string | undefined;
     baseUrl?: string;
   }) {
-    this.model = options.model ?? "claude-sonnet-4-20250514";
+    this.model = options.model ?? "claude-sonnet-5";
     this.apiKey = options.apiKey;
     this.baseUrl = (options.baseUrl ?? "https://api.anthropic.com").replace(/\/$/, "");
   }
@@ -45,6 +45,8 @@ export class AnthropicModel implements ChatModel {
       .join("\n\n");
     const messages = request.messages.filter((m) => m.role !== "system");
     try {
+      // Newer Claude models reject the temperature parameter entirely, so
+      // the adapter never sends it — the persona prompts carry the tone.
       const response = await fetch(`${this.baseUrl}/v1/messages`, {
         method: "POST",
         headers: {
@@ -55,14 +57,16 @@ export class AnthropicModel implements ChatModel {
         body: JSON.stringify({
           model: this.model,
           max_tokens: request.maxTokens ?? 2048,
-          temperature: request.temperature ?? 0.7,
           ...(system ? { system } : {}),
           messages,
         }),
       });
       if (!response.ok) {
+        const body = await response.text().catch(() => "");
         return err(
-          new ModelUnavailableError(`anthropic responded ${response.status}`),
+          new ModelUnavailableError(
+            `anthropic responded ${response.status}: ${body.slice(0, 300)}`,
+          ),
         );
       }
       const data = (await response.json()) as WireResponse;

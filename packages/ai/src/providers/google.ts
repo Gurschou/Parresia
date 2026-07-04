@@ -69,8 +69,11 @@ export class GoogleModel implements ChatModel {
         }),
       });
       if (!response.ok) {
+        const body = await response.text().catch(() => "");
         return err(
-          new ModelUnavailableError(`google responded ${response.status}`),
+          new ModelUnavailableError(
+            `google responded ${response.status}: ${body.slice(0, 300)}`,
+          ),
         );
       }
       const data = (await response.json()) as WireResponse;
