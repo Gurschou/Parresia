@@ -11,14 +11,14 @@ API Endpoints:
 - GET  /status          - Tjek om API'en kører
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 import sys
-from typing import Optional
 from pathlib import Path
+from mistralai.client.models.file import File as MistralFile
 
 # Tilføj projekt-roden til Python-path (for at importere AwakenX)
 sys.path.insert(0, str(Path(__file__).parent))
@@ -66,6 +66,25 @@ class ResetResponse(BaseModel):
     status: str
 
 
+class VoiceResponse(BaseModel):
+    transcript: str
+    reply: str
+    audio_data: str
+
+
+def get_agent(user_id: str) -> AwakenX:
+    """Hent eller opret en session, med en brugbar fejl hvis nøglen mangler."""
+    if user_id not in agents:
+        try:
+            agents[user_id] = AwakenX(user_id=user_id)
+        except SystemExit as error:
+            raise HTTPException(
+                status_code=500,
+                detail=f"MISTRAL_API_KEY mangler: {error}",
+            ) from error
+    return agents[user_id]
+
+
 @app.get("/", include_in_schema=False)
 async def get_app():
     """Servér 1MM AI's weboplevelse."""
@@ -91,22 +110,64 @@ async def chat(user_id: str, request: ChatRequest):
     
     Returnerer AwakenX' svar.
     """
-    # Hent eller opret agent
-    if user_id not in agents:
-        try:
-            agents[user_id] = AwakenX(user_id=user_id)
-        except SystemExit as e:
-            raise HTTPException(
-                status_code=500,
-                detail=f"MISTRAL_API_KEY mangler: {e}"
-            )
-    
-    agent = agents[user_id]
+    agent = get_agent(user_id)
     reply = agent.chat(request.message)
     
     return ChatResponse(
         reply=reply,
         user_id=user_id
+    )
+
+
+@app.post("/voice/{user_id}", response_model=VoiceResponse)
+async def voice_turn(user_id: str, audio: UploadFile = File(...)):
+    """
+    Ét stemmetur: transskriber lyd, få 1MM-svar og returnér tale som MP3.
+
+    Klienten sender en kort webm/ogg/wav-optagelse. Mistrals API-nøgle bliver
+    kun brugt på serveren — aldrig i browseren.
+    """
+    if not audio.content_type or not audio.content_type.startswith("audio/"):
+        raise HTTPException(status_code=415, detail="Upload en lydfil.")
+
+    content = await audio.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Lydoptagelsen var tom.")
+
+    agent = get_agent(user_id)
+    try:
+        transcription = agent.client.audio.transcriptions.complete(
+            model="voxtral-mini-2602",
+            file=MistralFile(
+                fileName=audio.filename or "voice-turn.webm",
+                content=content,
+                content_type=audio.content_type,
+            ),
+        )
+        transcript = transcription.text.strip()
+        if not transcript:
+            raise HTTPException(status_code=422, detail="Jeg kunne ikke høre tale i optagelsen.")
+
+        reply = agent.chat(
+            "Brugeren siger følgende i en live stemmesamtale. Svar kort, "
+            "naturligt og på dansk. Stil højst ét opklarende spørgsmål, hvis "
+            "det er nødvendigt før en ansvarlig 1MM-analyse.\n\n"
+            f"Transskription: {transcript}"
+        )
+        speech = agent.client.audio.speech.complete(
+            model="voxtral-mini-tts-2603",
+            input=reply,
+            response_format="mp3",
+        )
+    except HTTPException:
+        raise
+    except Exception as error:
+        raise HTTPException(status_code=502, detail=f"Stemmebehandling fejlede: {error}") from error
+
+    return VoiceResponse(
+        transcript=transcript,
+        reply=reply,
+        audio_data=speech.audio_data,
     )
 
 

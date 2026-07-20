@@ -155,6 +155,38 @@
             border: 1px solid var(--light);
         }
         .quiet-button:hover { color: var(--text); background: var(--surface-soft); }
+
+        .voice-panel {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            background: #101510;
+            border: 1px solid var(--light);
+            border-radius: 0.75rem;
+        }
+        .voice-orb {
+            flex: 0 0 3rem;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 0 rgba(216, 255, 98, 0.45);
+        }
+        .voice-panel.listening .voice-orb {
+            animation: pulse 1.2s infinite;
+            background: #ff9d72;
+        }
+        .voice-copy { flex: 1; min-width: 0; }
+        .voice-copy strong { display: block; margin-bottom: 0.2rem; }
+        .voice-copy span { color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+        .voice-button { min-width: 8.5rem; }
+        .voice-button.stop { background: #ff9d72; }
+        @keyframes pulse {
+            70% { box-shadow: 0 0 0 14px rgba(216, 255, 98, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(216, 255, 98, 0); }
+        }
         
         .chat-container {
             background: var(--surface-soft);
@@ -251,6 +283,8 @@
             .field-grid { grid-template-columns: 1fr; }
             .field.full { grid-column: auto; }
             header { padding-top: 2.5rem; }
+            .voice-panel { align-items: flex-start; flex-wrap: wrap; }
+            .voice-button { width: 100%; }
         }
     </style>
 </head>
@@ -294,6 +328,14 @@
             <div class="eyebrow">Din analyse</div>
             <h2 id="analysis-title">Ét mønster. Ét leverage-punkt. Ét næste træk.</h2>
             <p>Ingen diagnose og ingen tom motivation — kun en arbejdshypotese, der kan testes i virkeligheden.</p>
+            <div class="voice-panel" id="voicePanel">
+                <div class="voice-orb" aria-hidden="true"></div>
+                <div class="voice-copy">
+                    <strong>Stemmesamtale</strong>
+                    <span id="voiceStatus">Tal frit. Tryk stop, når du vil have 1MM’s svar læst op.</span>
+                </div>
+                <button class="voice-button" type="button" id="voiceButton" onclick="toggleVoice()">Start stemme</button>
+            </div>
             <div class="chat-container" id="chatContainer" aria-live="polite">
                 <div class="chat-message system">
                     Udfyld situationen ovenfor. Ved akut fare, vold, selvskade eller alvorlige symptomer: søg akut, lokal hjælp frem for performance-coaching.
@@ -313,6 +355,9 @@
     <script>
         const API_BASE = window.location.origin || 'http://localhost:8000';
         let currentUserId = '';
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let activeSpeech = null;
         
         // Hent bruger-ID fra localStorage
         const savedUserId = localStorage.getItem('awakenx_user_id');
@@ -328,6 +373,96 @@
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function setVoiceStatus(message, listening = false) {
+            const panel = document.getElementById('voicePanel');
+            const button = document.getElementById('voiceButton');
+            document.getElementById('voiceStatus').textContent = message;
+            panel.classList.toggle('listening', listening);
+            button.textContent = listening ? 'Stop og send' : 'Start stemme';
+            button.classList.toggle('stop', listening);
+        }
+
+        async function toggleVoice() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                setVoiceStatus('Sender din besked til 1MM …');
+                mediaRecorder.stop();
+                return;
+            }
+
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                alert('Indtast dit navn eller et bruger-ID, før du starter stemmesamtalen.');
+                document.getElementById('userIdInput').focus();
+                return;
+            }
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                addMessage('Din browser understøtter ikke mikrofonoptagelse. Brug en nyere Chrome, Edge eller Safari.', 'system');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                const preferredType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : '';
+                mediaRecorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    await sendVoiceTurn(userId, mediaRecorder.mimeType || 'audio/webm');
+                    mediaRecorder = null;
+                };
+                mediaRecorder.start();
+                setVoiceStatus('Lytter … Fortæl, hvad der sker under presset.', true);
+            } catch (error) {
+                setVoiceStatus('Mikrofonen kunne ikke startes.');
+                addMessage(`Mikrofonfejl: ${error.message}`, 'system');
+            }
+        }
+
+        async function sendVoiceTurn(userId, mimeType) {
+            const voiceButton = document.getElementById('voiceButton');
+            const recording = new Blob(audioChunks, { type: mimeType });
+            if (!recording.size) {
+                setVoiceStatus('Jeg modtog ingen lyd. Prøv igen.');
+                return;
+            }
+
+            voiceButton.disabled = true;
+            showTyping();
+            try {
+                const formData = new FormData();
+                const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
+                formData.append('audio', recording, `1mm-voice.${extension}`);
+                const response = await fetch(`${API_BASE}/voice/${encodeURIComponent(userId)}`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || `API-fejl: ${response.status}`);
+
+                hideTyping();
+                addMessage(`Du sagde: ${data.transcript}`, 'user');
+                addMessage(data.reply, 'agent');
+                setVoiceStatus('1MM har svaret. Tryk start, når du vil fortsætte.');
+
+                if (activeSpeech) activeSpeech.pause();
+                activeSpeech = new Audio(`data:audio/mp3;base64,${data.audio_data}`);
+                activeSpeech.play().catch(() => {
+                    addMessage('Svaret er klar som tekst. Browseren kunne ikke afspille lyden automatisk.', 'system');
+                });
+            } catch (error) {
+                hideTyping();
+                setVoiceStatus('Stemmesvaret fejlede. Prøv igen.');
+                addMessage(`Stemmefejl: ${error.message}`, 'system');
+            } finally {
+                voiceButton.disabled = false;
+            }
         }
         
         function showTyping() {
