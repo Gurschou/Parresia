@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AwakenX - Din personlige AI-coach</title>
+    <title>1MM AI — Precision Performance Intelligence</title>
     <style>
         :root {
-            --primary: #2563eb;
-            --secondary: #1e40af;
-            --bg: #f8fafc;
-            --text: #1e293b;
-            --light: #e2e8f0;
-            --success: #10b981;
+            --primary: #d8ff62;
+            --secondary: #a2c83c;
+            --bg: #0c0f0d;
+            --surface: #161b17;
+            --surface-soft: #202721;
+            --text: #f4f7ed;
+            --muted: #aab3a6;
+            --light: #364038;
+            --danger: #e17c6d;
         }
         
         * {
@@ -22,7 +25,7 @@
         }
         
         body {
-            background: var(--bg);
+            background: radial-gradient(circle at top right, #25311f 0, var(--bg) 42%);
             color: var(--text);
             min-height: 100vh;
             display: flex;
@@ -30,53 +33,105 @@
         }
         
         header {
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            color: white;
-            padding: 2rem;
-            text-align: center;
+            padding: 3.5rem 1rem 2rem;
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
         }
         
         header h1 {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+            font-size: clamp(2.4rem, 7vw, 4.5rem);
+            letter-spacing: -0.07em;
+            line-height: 0.9;
+            color: var(--primary);
+            margin-bottom: 1rem;
         }
         
         header p {
-            opacity: 0.9;
-            font-size: 1.1rem;
+            color: var(--muted);
+            font-size: 1.05rem;
+            max-width: 520px;
+            line-height: 1.5;
         }
         
         .container {
-            max-width: 800px;
-            margin: 2rem auto;
+            max-width: 960px;
+            margin: 0 auto 2rem;
             padding: 0 1rem;
             flex: 1;
         }
         
-        .user-input {
-            display: flex;
-            gap: 1rem;
-            margin-bottom: 2rem;
+        .eyebrow {
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 700;
+            letter-spacing: 0.16em;
+            text-transform: uppercase;
+            margin-bottom: 0.75rem;
         }
-        
-        .user-input input {
-            flex: 1;
+
+        .intake-card, .analysis-card {
+            background: var(--surface);
+            border: 1px solid var(--light);
+            border-radius: 1rem;
+            padding: clamp(1.25rem, 4vw, 2rem);
+            box-shadow: 0 24px 70px rgba(0, 0, 0, 0.2);
+        }
+
+        .intake-card { margin-bottom: 1rem; }
+
+        .intake-card h2, .analysis-card h2 {
+            font-size: 1.25rem;
+            letter-spacing: -0.03em;
+            margin-bottom: 0.4rem;
+        }
+
+        .intake-card > p, .analysis-card > p {
+            color: var(--muted);
+            line-height: 1.5;
+            margin-bottom: 1.5rem;
+        }
+
+        .field-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 1rem;
+        }
+
+        .field { display: flex; flex-direction: column; gap: 0.45rem; }
+        .field.full { grid-column: 1 / -1; }
+        label { color: #d9e1d2; font-size: 0.85rem; font-weight: 650; }
+
+        input, textarea {
+            width: 100%;
             padding: 0.75rem 1rem;
-            border: 2px solid var(--light);
+            border: 1px solid var(--light);
             border-radius: 0.5rem;
             font-size: 1rem;
+            color: var(--text);
+            background: #101510;
             transition: border-color 0.2s;
         }
-        
-        .user-input input:focus {
+
+        textarea { min-height: 130px; resize: vertical; line-height: 1.5; }
+        input:focus, textarea:focus {
             outline: none;
             border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(216, 255, 98, 0.12);
         }
-        
-        .user-input button {
+
+        .actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1.25rem;
+        }
+
+        button {
             padding: 0.75rem 1.5rem;
             background: var(--primary);
-            color: white;
+            color: #15200d;
             border: none;
             border-radius: 0.5rem;
             cursor: pointer;
@@ -84,23 +139,61 @@
             font-weight: 600;
             transition: background 0.2s;
         }
-        
-        .user-input button:hover {
+
+        button:hover {
             background: var(--secondary);
         }
-        
-        .user-input button:disabled {
+
+        button:disabled {
             background: var(--light);
             cursor: not-allowed;
         }
+
+        .quiet-button {
+            color: var(--muted);
+            background: transparent;
+            border: 1px solid var(--light);
+        }
+        .quiet-button:hover { color: var(--text); background: var(--surface-soft); }
+
+        .voice-panel {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 1.25rem 0;
+            background: #101510;
+            border: 1px solid var(--light);
+            border-radius: 0.75rem;
+        }
+        .voice-orb {
+            flex: 0 0 3rem;
+            width: 3rem;
+            height: 3rem;
+            border-radius: 50%;
+            background: var(--primary);
+            box-shadow: 0 0 0 0 rgba(216, 255, 98, 0.45);
+        }
+        .voice-panel.listening .voice-orb {
+            animation: pulse 1.2s infinite;
+            background: #ff9d72;
+        }
+        .voice-copy { flex: 1; min-width: 0; }
+        .voice-copy strong { display: block; margin-bottom: 0.2rem; }
+        .voice-copy span { color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
+        .voice-button { min-width: 8.5rem; }
+        .voice-button.stop { background: #ff9d72; }
+        @keyframes pulse {
+            70% { box-shadow: 0 0 0 14px rgba(216, 255, 98, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(216, 255, 98, 0); }
+        }
         
         .chat-container {
-            background: white;
+            background: var(--surface-soft);
             border-radius: 0.75rem;
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            max-height: 60vh;
+            border: 1px solid var(--light);
+            padding: 1rem;
+            max-height: 66vh;
             overflow-y: auto;
         }
         
@@ -112,22 +205,22 @@
         }
         
         .chat-message.user {
-            background: var(--light);
+            background: #303830;
             margin-left: 2rem;
             border-top-right-radius: 0;
         }
         
         .chat-message.agent {
-            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            background: #26341e;
             margin-right: 2rem;
             border-top-left-radius: 0;
         }
         
         .chat-message.system {
-            background: #fef3c7;
+            background: #33261f;
             text-align: center;
             font-size: 0.875rem;
-            color: #92400e;
+            color: #f0c39c;
             padding: 0.5rem;
         }
         
@@ -161,87 +254,110 @@
         
         .session-controls button {
             padding: 0.5rem 1rem;
-            background: #ef4444;
-            color: white;
-            border: none;
-            border-radius: 0.375rem;
-            cursor: pointer;
-            font-size: 0.875rem;
-            transition: background 0.2s;
+            color: var(--danger);
+            background: transparent;
+            border: 1px solid #653b35;
         }
         
         .session-controls button:hover {
-            background: #dc2626;
+            background: #321d1b;
         }
         
         .info-box {
-            background: linear-gradient(135deg, #e0e7ff, #c7d2fe);
-            padding: 1rem;
-            border-radius: 0.5rem;
-            margin-bottom: 1.5rem;
-            border-left: 4px solid var(--primary);
+            color: var(--muted);
+            font-size: 0.9rem;
+            line-height: 1.5;
         }
         
         .info-box h3 {
-            margin-bottom: 0.5rem;
-            color: var(--secondary);
+            color: var(--text);
         }
         
         footer {
             text-align: center;
             padding: 1.5rem;
-            color: #64748b;
+            color: var(--muted);
             font-size: 0.875rem;
+        }
+        @media (max-width: 640px) {
+            .field-grid { grid-template-columns: 1fr; }
+            .field.full { grid-column: auto; }
+            header { padding-top: 2.5rem; }
+            .voice-panel { align-items: flex-start; flex-wrap: wrap; }
+            .voice-button { width: 100%; }
         }
     </style>
 </head>
 <body>
     <header>
-        <h1>AwakenX</h1>
-        <p>Din personlige AI-coach med hukommelse</p>
+        <div class="eyebrow">Precision Performance Intelligence</div>
+        <h1>1MM AI</h1>
+        <p>Find det ene præcise træk, der ændrer din præstation under pres.</p>
     </header>
     
     <div class="container">
-        <div class="info-box">
-            <h3>💡 Sådan virker det:</h3>
-            <p>Start en samtale med AwakenX. Din hukommelse gemmes automatisk, så AwakenX husker dig næste gang.</p>
-        </div>
-        
-        <div class="user-input">
-            <input 
-                type="text" 
-                id="userIdInput" 
-                placeholder="Dit bruger-ID (f.eks. ditnavn)" 
-                value=""
-            >
-            <input 
-                type="text" 
-                id="messageInput" 
-                placeholder="Skriv din besked her..." 
-                onkeypress="if(event.key === 'Enter') sendMessage()"
-            >
-            <button onclick="sendMessage()" id="sendButton">Send</button>
-        </div>
-        
-        <div class="session-controls">
-            <button onclick="endSession()">Afslut session</button>
-            <button onclick="resetSession()">Nulstil session</button>
-        </div>
-        
-        <div class="chat-container" id="chatContainer">
-            <div class="chat-message system">
-                Vælg et bruger-ID og skriv en besked for at starte.
+        <section class="intake-card" aria-labelledby="intake-title">
+            <div class="eyebrow">Start med fakta</div>
+            <h2 id="intake-title">Hvad vil du præstere bedre?</h2>
+            <p>Beskriv én konkret situation. 1MM skelner mellem det, du ved, det du fortolker, og det der stadig er ukendt.</p>
+            <div class="field-grid">
+                <div class="field">
+                    <label for="userIdInput">Dit navn eller ID</label>
+                    <input type="text" id="userIdInput" autocomplete="username" placeholder="fx Maja">
+                </div>
+                <div class="field">
+                    <label for="goalInput">Ønsket præstation</label>
+                    <input type="text" id="goalInput" placeholder="Hvad skal du kunne gøre under pres?">
+                </div>
+                <div class="field full">
+                    <label for="situationInput">Den konkrete situation</label>
+                    <textarea id="situationInput" placeholder="Hvad skete der? Hvad var på spil? Hvad gjorde du, og hvad blev resultatet?"></textarea>
+                </div>
+                <div class="field full">
+                    <label for="stateInput">Din tilstand under presset <span>(valgfrit)</span></label>
+                    <input type="text" id="stateInput" placeholder="fx høj puls, tankemylder, træthed, irritation eller undgåelse">
+                </div>
             </div>
-        </div>
+            <div class="actions">
+                <button onclick="analyseSituation()" id="sendButton">Find mit 1MM Move</button>
+                <button class="quiet-button" onclick="loadExample()" type="button">Indlæs eksempel</button>
+            </div>
+        </section>
+
+        <section class="analysis-card" aria-labelledby="analysis-title">
+            <div class="eyebrow">Din analyse</div>
+            <h2 id="analysis-title">Ét mønster. Ét leverage-punkt. Ét næste træk.</h2>
+            <p>Ingen diagnose og ingen tom motivation — kun en arbejdshypotese, der kan testes i virkeligheden.</p>
+            <div class="voice-panel" id="voicePanel">
+                <div class="voice-orb" aria-hidden="true"></div>
+                <div class="voice-copy">
+                    <strong>Stemmesamtale</strong>
+                    <span id="voiceStatus">Tal frit. Tryk stop, når du vil have 1MM’s svar læst op.</span>
+                </div>
+                <button class="voice-button" type="button" id="voiceButton" onclick="toggleVoice()">Start stemme</button>
+            </div>
+            <div class="chat-container" id="chatContainer" aria-live="polite">
+                <div class="chat-message system">
+                    Udfyld situationen ovenfor. Ved akut fare, vold, selvskade eller alvorlige symptomer: søg akut, lokal hjælp frem for performance-coaching.
+                </div>
+            </div>
+            <div class="session-controls">
+                <button onclick="endSession()">Gem og afslut session</button>
+                <button onclick="resetSession()">Nulstil analyse</button>
+            </div>
+        </section>
     </div>
     
     <footer>
-        <p>AwakenX v1.0 | Mistral AI</p>
+        <p>1MM AI · Safety before performance · Mistral AI</p>
     </footer>
     
     <script>
         const API_BASE = window.location.origin || 'http://localhost:8000';
         let currentUserId = '';
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let activeSpeech = null;
         
         // Hent bruger-ID fra localStorage
         const savedUserId = localStorage.getItem('awakenx_user_id');
@@ -257,6 +373,96 @@
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        function setVoiceStatus(message, listening = false) {
+            const panel = document.getElementById('voicePanel');
+            const button = document.getElementById('voiceButton');
+            document.getElementById('voiceStatus').textContent = message;
+            panel.classList.toggle('listening', listening);
+            button.textContent = listening ? 'Stop og send' : 'Start stemme';
+            button.classList.toggle('stop', listening);
+        }
+
+        async function toggleVoice() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                setVoiceStatus('Sender din besked til 1MM …');
+                mediaRecorder.stop();
+                return;
+            }
+
+            const userId = document.getElementById('userIdInput').value.trim();
+            if (!userId) {
+                alert('Indtast dit navn eller et bruger-ID, før du starter stemmesamtalen.');
+                document.getElementById('userIdInput').focus();
+                return;
+            }
+            if (!navigator.mediaDevices || !window.MediaRecorder) {
+                addMessage('Din browser understøtter ikke mikrofonoptagelse. Brug en nyere Chrome, Edge eller Safari.', 'system');
+                return;
+            }
+
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                audioChunks = [];
+                const preferredType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
+                    ? 'audio/webm;codecs=opus'
+                    : '';
+                mediaRecorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
+                mediaRecorder.ondataavailable = event => {
+                    if (event.data.size > 0) audioChunks.push(event.data);
+                };
+                mediaRecorder.onstop = async () => {
+                    stream.getTracks().forEach(track => track.stop());
+                    await sendVoiceTurn(userId, mediaRecorder.mimeType || 'audio/webm');
+                    mediaRecorder = null;
+                };
+                mediaRecorder.start();
+                setVoiceStatus('Lytter … Fortæl, hvad der sker under presset.', true);
+            } catch (error) {
+                setVoiceStatus('Mikrofonen kunne ikke startes.');
+                addMessage(`Mikrofonfejl: ${error.message}`, 'system');
+            }
+        }
+
+        async function sendVoiceTurn(userId, mimeType) {
+            const voiceButton = document.getElementById('voiceButton');
+            const recording = new Blob(audioChunks, { type: mimeType });
+            if (!recording.size) {
+                setVoiceStatus('Jeg modtog ingen lyd. Prøv igen.');
+                return;
+            }
+
+            voiceButton.disabled = true;
+            showTyping();
+            try {
+                const formData = new FormData();
+                const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
+                formData.append('audio', recording, `1mm-voice.${extension}`);
+                const response = await fetch(`${API_BASE}/voice/${encodeURIComponent(userId)}`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || `API-fejl: ${response.status}`);
+
+                hideTyping();
+                addMessage(`Du sagde: ${data.transcript}`, 'user');
+                addMessage(data.reply, 'agent');
+                setVoiceStatus('1MM har svaret. Tryk start, når du vil fortsætte.');
+
+                if (activeSpeech) activeSpeech.pause();
+                activeSpeech = new Audio(`data:audio/mp3;base64,${data.audio_data}`);
+                activeSpeech.play().catch(() => {
+                    addMessage('Svaret er klar som tekst. Browseren kunne ikke afspille lyden automatisk.', 'system');
+                });
+            } catch (error) {
+                hideTyping();
+                setVoiceStatus('Stemmesvaret fejlede. Prøv igen.');
+                addMessage(`Stemmefejl: ${error.message}`, 'system');
+            } finally {
+                voiceButton.disabled = false;
+            }
         }
         
         function showTyping() {
@@ -276,22 +482,45 @@
             }
         }
         
-        async function sendMessage() {
+        function loadExample() {
+            document.getElementById('goalInput').value =
+                'Kommunikere roligt og direkte i en vigtig præsentation uden at overforklare.';
+            document.getElementById('situationInput').value =
+                'På mandagens ledelsesmøde blev jeg udfordret på mine tal. Jeg begyndte at forklare alle detaljer, talte hurtigt og mistede hovedpointen. Efter mødet tænkte jeg, at jeg virkede usikker.';
+            document.getElementById('stateInput').value =
+                'Høj puls, spændte skuldre og tanken: “Jeg må bevise, at jeg har styr på det.”';
+            document.getElementById('situationInput').focus();
+        }
+
+        async function analyseSituation() {
             const userIdInput = document.getElementById('userIdInput');
-            const messageInput = document.getElementById('messageInput');
+            const goalInput = document.getElementById('goalInput');
+            const situationInput = document.getElementById('situationInput');
+            const stateInput = document.getElementById('stateInput');
             const sendButton = document.getElementById('sendButton');
             
             const userId = userIdInput.value.trim();
-            const message = messageInput.value.trim();
+            const goal = goalInput.value.trim();
+            const situation = situationInput.value.trim();
+            const state = stateInput.value.trim();
             
             if (!userId) {
-                alert('Venligst indtast et bruger-ID');
+                alert('Indtast dit navn eller et bruger-ID.');
                 return;
             }
             
-            if (!message) {
+            if (!situation) {
+                alert('Beskriv den konkrete situation, før 1MM analyserer den.');
                 return;
             }
+
+            const message = [
+                'Analyser denne præstationssituation efter 1MM-rammen.',
+                `Ønsket præstation: ${goal || 'Ikke oplyst.'}`,
+                `Konkret situation: ${situation}`,
+                `Oplyst tilstand under presset: ${state || 'Ikke oplyst.'}`,
+                'Giv nu standardoutputtet med præcis ét 1MM Move.'
+            ].join('\n\n');
             
             // Gem bruger-ID
             currentUserId = userId;
@@ -299,11 +528,12 @@
             
             // Deaktivér knapper
             sendButton.disabled = true;
-            messageInput.disabled = true;
+            goalInput.disabled = true;
+            situationInput.disabled = true;
+            stateInput.disabled = true;
             
-            // Vis brugerbesked
-            addMessage(message, 'user');
-            messageInput.value = '';
+            // Vis input som en kort, læsbar briefing
+            addMessage(`Ønsket præstation: ${goal || 'Ikke oplyst.'}\n\nSituation: ${situation}\n\nTilstand: ${state || 'Ikke oplyst.'}`, 'user');
             
             // Vis typing-indikator
             showTyping();
@@ -331,8 +561,9 @@
                 console.error('Fejl:', error);
             } finally {
                 sendButton.disabled = false;
-                messageInput.disabled = false;
-                messageInput.focus();
+                goalInput.disabled = false;
+                situationInput.disabled = false;
+                stateInput.disabled = false;
             }
         }
         
@@ -349,6 +580,7 @@
                 
                 if (response.ok) {
                     addMessage('Session afsluttet. Hukommelse gemt.', 'system');
+                    currentUserId = '';
                 }
             } catch (error) {
                 addMessage(`Fejl ved afslutning: ${error.message}`, 'system');
@@ -367,15 +599,19 @@
                 });
                 
                 if (response.ok) {
-                    addMessage('Session nulstillet.', 'system');
+                    document.getElementById('goalInput').value = '';
+                    document.getElementById('situationInput').value = '';
+                    document.getElementById('stateInput').value = '';
+                    document.getElementById('chatContainer').innerHTML =
+                        '<div class="chat-message system">Analysen er nulstillet. Beskriv din næste konkrete situation.</div>';
                 }
             } catch (error) {
                 addMessage(`Fejl ved nulstilling: ${error.message}`, 'system');
             }
         }
         
-        // Auto-focus på message input
-        document.getElementById('messageInput').addEventListener('focus', function() {
+        // Bed om et ID før brugeren begynder at beskrive situationen.
+        document.getElementById('situationInput').addEventListener('focus', function() {
             if (!document.getElementById('userIdInput').value) {
                 document.getElementById('userIdInput').focus();
             }
