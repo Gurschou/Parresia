@@ -12,6 +12,7 @@ API Endpoints:
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
@@ -25,9 +26,9 @@ sys.path.insert(0, str(Path(__file__).parent))
 from awakenx_agent import AwakenX
 
 app = FastAPI(
-    title="AwakenX API",
-    description="Personlig AI-coach med persistent hukommelse",
-    version="1.0.0"
+    title="1MM AI API",
+    description="Precision Performance Intelligence med persistent hukommelse",
+    version="1.1.0"
 )
 
 # CORS (for at tillade requests fra frontend)
@@ -63,6 +64,12 @@ class EndResponse(BaseModel):
 
 class ResetResponse(BaseModel):
     status: str
+
+
+@app.get("/", include_in_schema=False)
+async def get_app():
+    """Servér 1MM AI's weboplevelse."""
+    return FileResponse(Path(__file__).parent / "index.html")
 
 
 @app.get("/status", response_model=StatusResponse)
