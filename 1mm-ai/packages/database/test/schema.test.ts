@@ -8,8 +8,8 @@ import {
   usageEvents,
   userPreferences,
   users,
-  type Database,
 } from "../src/schema";
+import type { Database } from "../src/client";
 
 let db: Database;
 let close: () => Promise<void>;
