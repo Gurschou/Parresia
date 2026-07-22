@@ -1,0 +1,3 @@
+# The Digital Twin data layer is a standalone TypeScript package (Postgres/
+# TimescaleDB); it is not part of the Vercel-deployed FastAPI prototype.
+datalayer
