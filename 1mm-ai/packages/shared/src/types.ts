@@ -58,7 +58,12 @@ export interface MemoryItem {
 
 /** Server-sent events emitted by the chat streaming endpoint. */
 export type ChatStreamEvent =
-  | { type: "message.created"; userMessageId: string; assistantMessageId: string }
+  | {
+      type: "message.created";
+      conversationId: string;
+      userMessageId: string;
+      assistantMessageId: string;
+    }
   | { type: "delta"; text: string }
   | { type: "tool.started"; toolName: string }
   | { type: "tool.finished"; toolName: string }

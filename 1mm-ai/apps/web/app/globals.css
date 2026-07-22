@@ -1,0 +1,114 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #0b0e14;
+  --color-surface: #131722;
+  --color-surface-raised: #1b2130;
+  --color-border: #2a3245;
+  --color-primary: #6366f1;
+  --color-primary-hover: #818cf8;
+  --color-accent: #22d3ee;
+  --color-text-primary: #f1f5f9;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-user-bubble: #312e81;
+  --color-assistant-bubble: #1b2130;
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-text-primary);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    "Helvetica Neue",
+    sans-serif;
+}
+
+/* Visible focus for keyboard users. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Respect users who prefer reduced motion. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Markdown content inside chat bubbles. */
+.chat-markdown p {
+  margin: 0.25rem 0;
+}
+.chat-markdown pre {
+  background: #0d1117;
+  border: 1px solid var(--color-border);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+  overflow-x: auto;
+  font-size: 0.85rem;
+  margin: 0.5rem 0;
+}
+.chat-markdown code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85em;
+}
+.chat-markdown :not(pre) > code {
+  background: #0d1117;
+  border: 1px solid var(--color-border);
+  border-radius: 0.25rem;
+  padding: 0.1rem 0.3rem;
+}
+.chat-markdown ul,
+.chat-markdown ol {
+  padding-left: 1.25rem;
+  margin: 0.25rem 0;
+}
+.chat-markdown ul {
+  list-style: disc;
+}
+.chat-markdown ol {
+  list-style: decimal;
+}
+.chat-markdown a {
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.chat-markdown h1,
+.chat-markdown h2,
+.chat-markdown h3 {
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
+.chat-markdown blockquote {
+  border-left: 3px solid var(--color-border);
+  padding-left: 0.75rem;
+  color: var(--color-text-secondary);
+  margin: 0.5rem 0;
+}
+.chat-markdown table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+.chat-markdown th,
+.chat-markdown td {
+  border: 1px solid var(--color-border);
+  padding: 0.25rem 0.5rem;
+}

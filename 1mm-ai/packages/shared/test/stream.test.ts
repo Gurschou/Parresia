@@ -5,7 +5,7 @@ import type { ChatStreamEvent } from "../src/types";
 describe("SSE stream parsing", () => {
   it("round-trips events through frames", () => {
     const events: ChatStreamEvent[] = [
-      { type: "message.created", userMessageId: "u1", assistantMessageId: "a1" },
+      { type: "message.created", conversationId: "c1", userMessageId: "u1", assistantMessageId: "a1" },
       { type: "delta", text: "Hej " },
       { type: "delta", text: "verden" },
       { type: "done", assistantMessageId: "a1" },
