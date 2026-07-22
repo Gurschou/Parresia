@@ -23,8 +23,21 @@ export const POST = withErrorHandling("/api/chat", async (request: NextRequest) 
   const provider = getAIProvider();
 
   const encoder = new TextEncoder();
+  let clientGone = false;
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
+      // The client may disconnect mid-stream (navigation, stop, network).
+      // Persistence in runChatTurn must still finish, so we keep consuming
+      // the generator and only skip the enqueue.
+      const send = (chunk: string) => {
+        if (clientGone) return;
+        try {
+          controller.enqueue(encoder.encode(chunk));
+        } catch {
+          clientGone = true;
+        }
+      };
+
       try {
         for await (const event of runChatTurn({
           db,
@@ -37,27 +50,34 @@ export const POST = withErrorHandling("/api/chat", async (request: NextRequest) 
           clientSignal: request.signal,
           requestId,
         })) {
-          controller.enqueue(encoder.encode(toSseFrame(event)));
+          send(toSseFrame(event));
         }
-        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        send("data: [DONE]\n\n");
       } catch (error) {
         logger.error("chat_stream_crashed", {
           requestId,
           userId: user.id,
           error: error instanceof Error ? error.message : "unknown",
         });
-        controller.enqueue(
-          encoder.encode(
-            toSseFrame({
-              type: "error",
-              message: "Der opstod en serverfejl under streaming.",
-              retryable: true,
-            }),
-          ),
+        send(
+          toSseFrame({
+            type: "error",
+            message: "Der opstod en serverfejl under streaming.",
+            retryable: true,
+          }),
         );
       } finally {
-        controller.close();
+        if (!clientGone) {
+          try {
+            controller.close();
+          } catch {
+            // Already closed by the runtime – nothing to do.
+          }
+        }
       }
+    },
+    cancel() {
+      clientGone = true;
     },
   });
 
