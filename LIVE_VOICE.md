@@ -32,6 +32,25 @@ through the 1MM application server.
 - The UI requires an explicit voice-processing consent checkbox before it
   asks for a session credential.
 
+## Emotional-intelligence policy
+
+The realtime session includes an explicit behavioural policy — it is not a
+claim that the model can detect or possess emotions. 1MM:
+
+- reflects explicitly shared feelings tentatively and briefly before trying
+  to solve a problem;
+- validates the experience without validating a catastrophic or harmful
+  conclusion;
+- matches conversational intensity, offers choice (listen, perspective, or
+  a concrete step), asks permission before going deeper, and preserves the
+  athlete's agency;
+- avoids mind-reading, therapy imitation, emotional dependency, pressure,
+  flattery and inferred emotion scores;
+- stops performance coaching and directs the person to immediate local help
+  for emergency or self-harm signals.
+
+No inferred emotional state is persisted or presented as fact.
+
 ## Privacy boundary
 
 No raw audio is persisted by this implementation. Transcripts are rendered
