@@ -8,6 +8,7 @@ dependencies = [
     "mistralai>=1.0.0",
     "python-multipart>=0.0.32",
     "uvicorn>=0.24.0",
+    "httpx>=0.28.0",
 ]
 
 [tool.vercel]

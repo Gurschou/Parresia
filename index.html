@@ -178,11 +178,25 @@
             animation: pulse 1.2s infinite;
             background: #ff9d72;
         }
+        .voice-panel.speaking .voice-orb {
+            animation: pulse 0.75s infinite;
+            background: #8ab4ff;
+        }
         .voice-copy { flex: 1; min-width: 0; }
         .voice-copy strong { display: block; margin-bottom: 0.2rem; }
         .voice-copy span { color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
         .voice-button { min-width: 8.5rem; }
         .voice-button.stop { background: #ff9d72; }
+        .voice-consent {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            width: 100%;
+            color: var(--muted);
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+        .voice-consent input { width: auto; margin-top: 0.15rem; }
         @keyframes pulse {
             70% { box-shadow: 0 0 0 14px rgba(216, 255, 98, 0); }
             100% { box-shadow: 0 0 0 0 rgba(216, 255, 98, 0); }
@@ -331,10 +345,14 @@
             <div class="voice-panel" id="voicePanel">
                 <div class="voice-orb" aria-hidden="true"></div>
                 <div class="voice-copy">
-                    <strong>Stemmesamtale</strong>
-                    <span id="voiceStatus">Tal frit. Tryk stop, når du vil have 1MM’s svar læst op.</span>
+                    <strong>Live stemmesamtale</strong>
+                    <span id="voiceStatus">Tal naturligt. 1MM lytter og svarer løbende — du kan afbryde når som helst.</span>
                 </div>
-                <button class="voice-button" type="button" id="voiceButton" onclick="toggleVoice()">Start stemme</button>
+                <button class="voice-button" type="button" id="voiceButton" onclick="toggleLiveVoice()">Start live</button>
+                <label class="voice-consent">
+                    <input id="voiceConsent" type="checkbox">
+                    <span>Jeg samtykker til, at mikrofonlyd og live-transskription behandles af OpenAI for denne samtale. 1MM gemmer ikke rå lyd.</span>
+                </label>
             </div>
             <div class="chat-container" id="chatContainer" aria-live="polite">
                 <div class="chat-message system">
@@ -349,15 +367,18 @@
     </div>
     
     <footer>
-        <p>1MM AI · Safety before performance · Mistral AI</p>
+        <p>1MM AI · Safety before performance · OpenAI Realtime</p>
     </footer>
     
     <script>
         const API_BASE = window.location.origin || 'http://localhost:8000';
         let currentUserId = '';
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let activeSpeech = null;
+        let realtimePeerConnection = null;
+        let realtimeDataChannel = null;
+        let realtimeLocalStream = null;
+        let realtimeAudio = null;
+        let liveAgentTranscript = '';
+        let liveAgentMessage = null;
         
         // Hent bruger-ID fra localStorage
         const savedUserId = localStorage.getItem('awakenx_user_id');
@@ -373,21 +394,28 @@
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
         }
 
-        function setVoiceStatus(message, listening = false) {
+        function setVoiceStatus(message, state = 'idle') {
             const panel = document.getElementById('voicePanel');
             const button = document.getElementById('voiceButton');
             document.getElementById('voiceStatus').textContent = message;
-            panel.classList.toggle('listening', listening);
-            button.textContent = listening ? 'Stop og send' : 'Start stemme';
-            button.classList.toggle('stop', listening);
+            panel.classList.toggle('listening', state === 'listening');
+            panel.classList.toggle('speaking', state === 'speaking');
+            const active = state === 'listening' || state === 'speaking' || state === 'connecting';
+            button.textContent = active ? 'Afslut live' : 'Start live';
+            button.classList.toggle('stop', active);
         }
 
-        async function toggleVoice() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                setVoiceStatus('Sender din besked til 1MM …');
-                mediaRecorder.stop();
+        /**
+         * OpenAI Realtime over WebRTC. Audio travels directly from the
+         * microphone to OpenAI; this app server only issues a short-lived
+         * client secret and never receives raw audio or the OpenAI API key.
+         */
+        async function toggleLiveVoice() {
+            if (realtimePeerConnection) {
+                stopLiveVoice('Live-samtalen er afsluttet. Tryk start, når du vil fortsætte.');
                 return;
             }
 
@@ -397,72 +425,142 @@
                 document.getElementById('userIdInput').focus();
                 return;
             }
-            if (!navigator.mediaDevices || !window.MediaRecorder) {
-                addMessage('Din browser understøtter ikke mikrofonoptagelse. Brug en nyere Chrome, Edge eller Safari.', 'system');
+            if (!document.getElementById('voiceConsent').checked) {
+                addMessage('Bekræft samtykket til stemmebehandling, før du starter live-samtalen.', 'system');
+                return;
+            }
+            if (!navigator.mediaDevices || !window.RTCPeerConnection) {
+                addMessage('Live stemme kræver en browser med WebRTC og mikrofonadgang. Brug en nyere Chrome, Edge eller Safari.', 'system');
                 return;
             }
 
+            const button = document.getElementById('voiceButton');
+            button.disabled = true;
+            setVoiceStatus('Opretter en privat live-forbindelse …', 'connecting');
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-                const preferredType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? 'audio/webm;codecs=opus'
-                    : '';
-                mediaRecorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
+                const tokenResponse = await fetch(`${API_BASE}/voice/realtime/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        consent_to_process_voice: true,
+                    }),
+                });
+                const tokenPayload = await tokenResponse.json();
+                if (!tokenResponse.ok) {
+                    throw new Error(tokenPayload.detail || `API-fejl: ${tokenResponse.status}`);
+                }
+
+                realtimeLocalStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    },
+                });
+                const peerConnection = new RTCPeerConnection();
+                realtimePeerConnection = peerConnection;
+                realtimeAudio = new Audio();
+                realtimeAudio.autoplay = true;
+                peerConnection.ontrack = event => {
+                    realtimeAudio.srcObject = event.streams[0];
                 };
-                mediaRecorder.onstop = async () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    await sendVoiceTurn(userId, mediaRecorder.mimeType || 'audio/webm');
-                    mediaRecorder = null;
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === 'failed') {
+                        stopLiveVoice('Live-forbindelsen blev afbrudt. Prøv igen.');
+                    }
                 };
-                mediaRecorder.start();
-                setVoiceStatus('Lytter … Fortæl, hvad der sker under presset.', true);
+
+                realtimeLocalStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, realtimeLocalStream);
+                });
+                realtimeDataChannel = peerConnection.createDataChannel('oai-events');
+                realtimeDataChannel.addEventListener('message', handleRealtimeEvent);
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${tokenPayload.client_secret}`,
+                        'Content-Type': 'application/sdp',
+                    },
+                    body: offer.sdp,
+                });
+                if (!sdpResponse.ok) {
+                    throw new Error('OpenAI kunne ikke oprette live-forbindelsen.');
+                }
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: await sdpResponse.text(),
+                });
+                setVoiceStatus('Lytter … Tal frit. Du kan afbryde 1MM når som helst.', 'listening');
             } catch (error) {
-                setVoiceStatus('Mikrofonen kunne ikke startes.');
-                addMessage(`Mikrofonfejl: ${error.message}`, 'system');
+                stopLiveVoice('Live-stemme kunne ikke startes.');
+                addMessage(`Live-stemmefejl: ${error.message}`, 'system');
+            } finally {
+                button.disabled = false;
             }
         }
 
-        async function sendVoiceTurn(userId, mimeType) {
-            const voiceButton = document.getElementById('voiceButton');
-            const recording = new Blob(audioChunks, { type: mimeType });
-            if (!recording.size) {
-                setVoiceStatus('Jeg modtog ingen lyd. Prøv igen.');
+        function handleRealtimeEvent(message) {
+            let event;
+            try {
+                event = JSON.parse(message.data);
+            } catch (error) {
                 return;
             }
 
-            voiceButton.disabled = true;
-            showTyping();
-            try {
-                const formData = new FormData();
-                const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
-                formData.append('audio', recording, `1mm-voice.${extension}`);
-                const response = await fetch(`${API_BASE}/voice/${encodeURIComponent(userId)}`, {
-                    method: 'POST',
-                    body: formData,
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.detail || `API-fejl: ${response.status}`);
-
-                hideTyping();
-                addMessage(`Du sagde: ${data.transcript}`, 'user');
-                addMessage(data.reply, 'agent');
-                setVoiceStatus('1MM har svaret. Tryk start, når du vil fortsætte.');
-
-                if (activeSpeech) activeSpeech.pause();
-                activeSpeech = new Audio(`data:audio/mp3;base64,${data.audio_data}`);
-                activeSpeech.play().catch(() => {
-                    addMessage('Svaret er klar som tekst. Browseren kunne ikke afspille lyden automatisk.', 'system');
-                });
-            } catch (error) {
-                hideTyping();
-                setVoiceStatus('Stemmesvaret fejlede. Prøv igen.');
-                addMessage(`Stemmefejl: ${error.message}`, 'system');
-            } finally {
-                voiceButton.disabled = false;
+            if (event.type === 'input_audio_buffer.speech_started') {
+                // Native semantic VAD also cancels an in-progress answer:
+                // this is the ChatGPT Live-style barge-in behavior.
+                setVoiceStatus('Lytter … 1MM stopper, når du begynder at tale.', 'listening');
+                return;
             }
+            if (event.type === 'input_audio_buffer.speech_stopped') {
+                setVoiceStatus('Tænker …', 'connecting');
+                return;
+            }
+            if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
+                addMessage(`Du sagde: ${event.transcript}`, 'user');
+                return;
+            }
+            if (event.type === 'response.output_audio_transcript.delta') {
+                if (!liveAgentMessage) {
+                    liveAgentMessage = addMessage('', 'agent');
+                    liveAgentTranscript = '';
+                }
+                liveAgentTranscript += event.delta || '';
+                liveAgentMessage.textContent = liveAgentTranscript;
+                setVoiceStatus('1MM svarer … Du kan afbryde når som helst.', 'speaking');
+                return;
+            }
+            if (event.type === 'response.output_audio_transcript.done') {
+                if (liveAgentMessage && event.transcript) {
+                    liveAgentMessage.textContent = event.transcript;
+                }
+                liveAgentMessage = null;
+                liveAgentTranscript = '';
+                setVoiceStatus('Lytter …', 'listening');
+            }
+        }
+
+        function stopLiveVoice(statusMessage = 'Live-samtalen er afsluttet.') {
+            if (realtimeDataChannel) realtimeDataChannel.close();
+            realtimeDataChannel = null;
+            if (realtimePeerConnection) realtimePeerConnection.close();
+            realtimePeerConnection = null;
+            if (realtimeLocalStream) realtimeLocalStream.getTracks().forEach(track => track.stop());
+            realtimeLocalStream = null;
+            if (realtimeAudio) {
+                realtimeAudio.pause();
+                realtimeAudio.srcObject = null;
+            }
+            realtimeAudio = null;
+            liveAgentMessage = null;
+            liveAgentTranscript = '';
+            setVoiceStatus(statusMessage);
         }
         
         function showTyping() {
