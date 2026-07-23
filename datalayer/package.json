@@ -1,0 +1,27 @@
+{
+  "name": "@1mm/datalayer",
+  "version": "0.1.0",
+  "private": true,
+  "description": "1MM Digital Twin data layer: Profile Store, Event Log, Pattern Graph, Intervention Ledger",
+  "type": "module",
+  "scripts": {
+    "build": "tsc --noEmit",
+    "migrate": "tsx src/db/migrate.ts",
+    "seed": "tsx seeds/run.ts",
+    "test": "vitest run",
+    "drizzle:generate": "drizzle-kit generate"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.44.2",
+    "pg": "^8.16.0",
+    "zod": "^3.25.67"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/pg": "^8.15.4",
+    "drizzle-kit": "^0.31.1",
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}

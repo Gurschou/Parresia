@@ -178,11 +178,221 @@
             animation: pulse 1.2s infinite;
             background: #ff9d72;
         }
+        .voice-panel.speaking .voice-orb {
+            animation: pulse 0.75s infinite;
+            background: #8ab4ff;
+        }
         .voice-copy { flex: 1; min-width: 0; }
         .voice-copy strong { display: block; margin-bottom: 0.2rem; }
         .voice-copy span { color: var(--muted); font-size: 0.88rem; line-height: 1.4; }
         .voice-button { min-width: 8.5rem; }
         .voice-button.stop { background: #ff9d72; }
+        .voice-consent {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.5rem;
+            width: 100%;
+            color: var(--muted);
+            font-size: 0.76rem;
+            line-height: 1.35;
+        }
+        .voice-consent input { width: auto; margin-top: 0.15rem; }
+
+        /*
+         * Full-screen Live Voice surface. This intentionally does not reuse
+         * the analytical dashboard's dark palette: in a spoken conversation
+         * the person needs one clear focal point and one obvious exit path.
+         * The centre orb stays quiet while listening and becomes a warm,
+         * flame-like signal only while 1MM is actually speaking.
+         */
+        .live-voice-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            padding: max(1.25rem, env(safe-area-inset-top)) 1.25rem max(1.5rem, env(safe-area-inset-bottom));
+            color: #171717;
+            background: #fffdfb;
+        }
+        .live-voice-screen.active { display: flex; }
+        .live-voice-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+        }
+        .live-voice-header-left {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+        .live-icon-button, .live-title {
+            height: 3rem;
+            border: 0;
+            border-radius: 1.5rem;
+            background: #fff;
+            box-shadow: 0 8px 25px rgba(23, 18, 12, 0.08);
+        }
+        .live-icon-button {
+            display: grid;
+            place-items: center;
+            width: 3rem;
+            padding: 0;
+            color: #181818;
+            font-size: 1.4rem;
+            line-height: 1;
+        }
+        .live-icon-button:hover { background: #f3ede8; }
+        .live-title {
+            display: inline-flex;
+            align-items: center;
+            padding: 0 1.25rem;
+            font-size: 1.05rem;
+            font-weight: 650;
+        }
+        .live-orb-stage {
+            display: grid;
+            flex: 1;
+            place-items: center;
+            min-height: 16rem;
+        }
+        .live-orb {
+            position: relative;
+            display: grid;
+            place-items: center;
+            width: min(49vw, 15rem);
+            aspect-ratio: 1;
+            overflow: hidden;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 31% 29%, rgba(255,255,255,0.94) 0 5%, transparent 27%),
+                radial-gradient(circle at 62% 68%, rgba(126, 152, 255, 0.78), transparent 50%),
+                linear-gradient(145deg, #d9e0ff, #a1aeff 54%, #dbe1ff);
+            box-shadow:
+                inset -20px -24px 45px rgba(73, 86, 198, 0.18),
+                inset 14px 12px 32px rgba(255, 255, 255, 0.75),
+                0 24px 55px rgba(88, 101, 218, 0.15);
+            transition: background 450ms ease, box-shadow 450ms ease, transform 450ms ease;
+        }
+        .live-orb::before, .live-orb::after {
+            position: absolute;
+            content: "";
+            width: 75%;
+            height: 75%;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.48);
+            filter: blur(24px);
+            transform: translate(-24%, 28%);
+            opacity: 0.65;
+        }
+        .live-orb::after {
+            width: 55%;
+            height: 55%;
+            background: rgba(97, 112, 246, 0.36);
+            transform: translate(39%, -36%);
+        }
+        /* 1MM speaking: warm, irregular light with a subtle flame motion. */
+        .live-voice-screen.speaking .live-orb {
+            transform: scale(1.07);
+            background:
+                radial-gradient(ellipse at 46% 26%, #fff0a8 0 8%, transparent 32%),
+                radial-gradient(ellipse at 65% 76%, #e52718 0 26%, transparent 64%),
+                radial-gradient(ellipse at 30% 69%, #ff7b18 0 30%, transparent 68%),
+                linear-gradient(155deg, #ffd65a 0%, #ff7d17 42%, #d71317 76%, #8e0719 100%);
+            box-shadow:
+                inset -22px -28px 45px rgba(121, 5, 14, 0.48),
+                inset 18px 10px 35px rgba(255, 245, 181, 0.5),
+                0 0 0 16px rgba(255, 94, 26, 0.07),
+                0 22px 70px rgba(224, 37, 18, 0.42);
+            animation: flame-breathe 1.05s ease-in-out infinite alternate;
+        }
+        .live-voice-screen.speaking .live-orb::before {
+            opacity: 0.8;
+            background: rgba(255, 238, 125, 0.64);
+            animation: flame-drift 1.2s ease-in-out infinite alternate;
+        }
+        .live-voice-screen.speaking .live-orb::after {
+            opacity: 0.72;
+            background: rgba(196, 8, 24, 0.68);
+            animation: flame-drift 0.85s ease-in-out -0.4s infinite alternate-reverse;
+        }
+        @keyframes flame-breathe {
+            from { transform: scale(1.025) rotate(-1deg); }
+            to { transform: scale(1.1) rotate(1deg); }
+        }
+        @keyframes flame-drift {
+            from { transform: translate(-28%, 25%) scale(0.92); }
+            to { transform: translate(-11%, 9%) scale(1.1); }
+        }
+        .live-orb-label {
+            position: absolute;
+            z-index: 1;
+            max-width: 76%;
+            color: rgba(28, 16, 14, 0.72);
+            font-size: 0.78rem;
+            font-weight: 650;
+            letter-spacing: 0.02em;
+            text-align: center;
+            transition: color 300ms ease;
+        }
+        .live-voice-screen.speaking .live-orb-label { color: rgba(85, 9, 8, 0.82); }
+        .live-voice-status {
+            margin: 0 auto 1rem;
+            color: #77716c;
+            font-size: 0.95rem;
+            text-align: center;
+        }
+        .live-voice-composer {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            width: min(100%, 38rem);
+            margin: 0 auto;
+        }
+        .live-composer-pill {
+            display: flex;
+            flex: 1;
+            align-items: center;
+            min-width: 0;
+            height: 3.6rem;
+            padding: 0 1rem;
+            border-radius: 1.8rem;
+            color: #9c9791;
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(23, 18, 12, 0.08);
+        }
+        .live-composer-plus { font-size: 1.8rem; font-weight: 300; margin-right: 0.8rem; }
+        .live-mic-indicator {
+            display: grid;
+            flex: 0 0 3.6rem;
+            place-items: center;
+            width: 3.6rem;
+            height: 3.6rem;
+            border-radius: 50%;
+            color: #25211e;
+            background: #fff;
+            box-shadow: 0 8px 28px rgba(23, 18, 12, 0.08);
+            font-size: 1.45rem;
+        }
+        .live-end-button {
+            display: grid;
+            flex: 0 0 3.6rem;
+            place-items: center;
+            width: 3.6rem;
+            height: 3.6rem;
+            padding: 0;
+            border-radius: 50%;
+            color: white;
+            background: #1c1b1a;
+            font-size: 1.65rem;
+            font-weight: 300;
+        }
+        .live-end-button:hover { background: #d83b29; }
+        @media (min-width: 700px) {
+            .live-voice-screen { padding-left: max(2.5rem, env(safe-area-inset-left)); padding-right: max(2.5rem, env(safe-area-inset-right)); }
+            .live-orb { width: min(32vw, 19rem); }
+        }
         @keyframes pulse {
             70% { box-shadow: 0 0 0 14px rgba(216, 255, 98, 0); }
             100% { box-shadow: 0 0 0 0 rgba(216, 255, 98, 0); }
@@ -289,6 +499,30 @@
     </style>
 </head>
 <body>
+    <!-- Opened only for a live call; the dashboard remains available behind it. -->
+    <section class="live-voice-screen" id="liveVoiceScreen" aria-label="1MM live stemmesamtale" aria-hidden="true">
+        <div class="live-voice-header">
+            <div class="live-voice-header-left">
+                <button class="live-icon-button" type="button" aria-label="Afslut live-samtale" onclick="stopLiveVoice()">×</button>
+                <div class="live-title">1MM Live</div>
+            </div>
+            <button class="live-icon-button" type="button" aria-label="Stemmeindstillinger" title="Stemmeindstillinger administreres i denne fase af produktteamet">⌘</button>
+        </div>
+        <div class="live-orb-stage">
+            <div class="live-orb" aria-hidden="true">
+                <span class="live-orb-label" id="liveOrbLabel">1MM lytter</span>
+            </div>
+        </div>
+        <p class="live-voice-status" id="liveVoiceStatus" aria-live="polite">Forbinder …</p>
+        <div class="live-voice-composer">
+            <div class="live-composer-pill" aria-hidden="true">
+                <span class="live-composer-plus">+</span>
+                <span>Tal med 1MM</span>
+            </div>
+            <div class="live-mic-indicator" aria-hidden="true">⌁</div>
+            <button class="live-end-button" type="button" aria-label="Afslut live-samtale" onclick="stopLiveVoice()">×</button>
+        </div>
+    </section>
     <header>
         <div class="eyebrow">Precision Performance Intelligence</div>
         <h1>1MM AI</h1>
@@ -331,10 +565,14 @@
             <div class="voice-panel" id="voicePanel">
                 <div class="voice-orb" aria-hidden="true"></div>
                 <div class="voice-copy">
-                    <strong>Stemmesamtale</strong>
-                    <span id="voiceStatus">Tal frit. Tryk stop, når du vil have 1MM’s svar læst op.</span>
+                    <strong>Live stemmesamtale</strong>
+                    <span id="voiceStatus">Tal naturligt. 1MM lytter og svarer løbende — du kan afbryde når som helst.</span>
                 </div>
-                <button class="voice-button" type="button" id="voiceButton" onclick="toggleVoice()">Start stemme</button>
+                <button class="voice-button" type="button" id="voiceButton" onclick="toggleLiveVoice()">Start live</button>
+                <label class="voice-consent">
+                    <input id="voiceConsent" type="checkbox">
+                    <span>Jeg samtykker til, at mikrofonlyd og live-transskription behandles af OpenAI for denne samtale. 1MM gemmer ikke rå lyd.</span>
+                </label>
             </div>
             <div class="chat-container" id="chatContainer" aria-live="polite">
                 <div class="chat-message system">
@@ -349,15 +587,18 @@
     </div>
     
     <footer>
-        <p>1MM AI · Safety before performance · Mistral AI</p>
+        <p>1MM AI · Safety before performance · OpenAI Realtime</p>
     </footer>
     
     <script>
         const API_BASE = window.location.origin || 'http://localhost:8000';
         let currentUserId = '';
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let activeSpeech = null;
+        let realtimePeerConnection = null;
+        let realtimeDataChannel = null;
+        let realtimeLocalStream = null;
+        let realtimeAudio = null;
+        let liveAgentTranscript = '';
+        let liveAgentMessage = null;
         
         // Hent bruger-ID fra localStorage
         const savedUserId = localStorage.getItem('awakenx_user_id');
@@ -373,21 +614,51 @@
             messageDiv.textContent = content;
             chatContainer.appendChild(messageDiv);
             chatContainer.scrollTop = chatContainer.scrollHeight;
+            return messageDiv;
         }
 
-        function setVoiceStatus(message, listening = false) {
+        function setVoiceStatus(message, state = 'idle') {
             const panel = document.getElementById('voicePanel');
             const button = document.getElementById('voiceButton');
+            const liveScreen = document.getElementById('liveVoiceScreen');
             document.getElementById('voiceStatus').textContent = message;
-            panel.classList.toggle('listening', listening);
-            button.textContent = listening ? 'Stop og send' : 'Start stemme';
-            button.classList.toggle('stop', listening);
+            document.getElementById('liveVoiceStatus').textContent = message;
+            panel.classList.toggle('listening', state === 'listening');
+            panel.classList.toggle('speaking', state === 'speaking');
+            liveScreen.classList.toggle('speaking', state === 'speaking');
+            document.getElementById('liveOrbLabel').textContent =
+                state === 'speaking'
+                    ? '1MM taler'
+                    : state === 'connecting'
+                        ? '1MM forbinder'
+                        : state === 'listening'
+                            ? '1MM lytter'
+                            : '1MM Live';
+            const active = state === 'listening' || state === 'speaking' || state === 'connecting';
+            button.textContent = active ? 'Afslut live' : 'Start live';
+            button.classList.toggle('stop', active);
         }
 
-        async function toggleVoice() {
-            if (mediaRecorder && mediaRecorder.state === 'recording') {
-                setVoiceStatus('Sender din besked til 1MM …');
-                mediaRecorder.stop();
+        function showLiveVoiceScreen() {
+            const liveScreen = document.getElementById('liveVoiceScreen');
+            liveScreen.classList.add('active');
+            liveScreen.setAttribute('aria-hidden', 'false');
+        }
+
+        function hideLiveVoiceScreen() {
+            const liveScreen = document.getElementById('liveVoiceScreen');
+            liveScreen.classList.remove('active', 'speaking');
+            liveScreen.setAttribute('aria-hidden', 'true');
+        }
+
+        /**
+         * OpenAI Realtime over WebRTC. Audio travels directly from the
+         * microphone to OpenAI; this app server only issues a short-lived
+         * client secret and never receives raw audio or the OpenAI API key.
+         */
+        async function toggleLiveVoice() {
+            if (realtimePeerConnection) {
+                stopLiveVoice('Live-samtalen er afsluttet. Tryk start, når du vil fortsætte.');
                 return;
             }
 
@@ -397,72 +668,144 @@
                 document.getElementById('userIdInput').focus();
                 return;
             }
-            if (!navigator.mediaDevices || !window.MediaRecorder) {
-                addMessage('Din browser understøtter ikke mikrofonoptagelse. Brug en nyere Chrome, Edge eller Safari.', 'system');
+            if (!document.getElementById('voiceConsent').checked) {
+                addMessage('Bekræft samtykket til stemmebehandling, før du starter live-samtalen.', 'system');
+                return;
+            }
+            if (!navigator.mediaDevices || !window.RTCPeerConnection) {
+                addMessage('Live stemme kræver en browser med WebRTC og mikrofonadgang. Brug en nyere Chrome, Edge eller Safari.', 'system');
                 return;
             }
 
+            showLiveVoiceScreen();
+            const button = document.getElementById('voiceButton');
+            button.disabled = true;
+            setVoiceStatus('Opretter en privat live-forbindelse …', 'connecting');
+
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                audioChunks = [];
-                const preferredType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-                    ? 'audio/webm;codecs=opus'
-                    : '';
-                mediaRecorder = new MediaRecorder(stream, preferredType ? { mimeType: preferredType } : undefined);
-                mediaRecorder.ondataavailable = event => {
-                    if (event.data.size > 0) audioChunks.push(event.data);
+                const tokenResponse = await fetch(`${API_BASE}/voice/realtime/session`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        consent_to_process_voice: true,
+                    }),
+                });
+                const tokenPayload = await tokenResponse.json();
+                if (!tokenResponse.ok) {
+                    throw new Error(tokenPayload.detail || `API-fejl: ${tokenResponse.status}`);
+                }
+
+                realtimeLocalStream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                    },
+                });
+                const peerConnection = new RTCPeerConnection();
+                realtimePeerConnection = peerConnection;
+                realtimeAudio = new Audio();
+                realtimeAudio.autoplay = true;
+                peerConnection.ontrack = event => {
+                    realtimeAudio.srcObject = event.streams[0];
                 };
-                mediaRecorder.onstop = async () => {
-                    stream.getTracks().forEach(track => track.stop());
-                    await sendVoiceTurn(userId, mediaRecorder.mimeType || 'audio/webm');
-                    mediaRecorder = null;
+                peerConnection.onconnectionstatechange = () => {
+                    if (peerConnection.connectionState === 'failed') {
+                        stopLiveVoice('Live-forbindelsen blev afbrudt. Prøv igen.');
+                    }
                 };
-                mediaRecorder.start();
-                setVoiceStatus('Lytter … Fortæl, hvad der sker under presset.', true);
+
+                realtimeLocalStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, realtimeLocalStream);
+                });
+                realtimeDataChannel = peerConnection.createDataChannel('oai-events');
+                realtimeDataChannel.addEventListener('message', handleRealtimeEvent);
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                const sdpResponse = await fetch('https://api.openai.com/v1/realtime/calls', {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${tokenPayload.client_secret}`,
+                        'Content-Type': 'application/sdp',
+                    },
+                    body: offer.sdp,
+                });
+                if (!sdpResponse.ok) {
+                    throw new Error('OpenAI kunne ikke oprette live-forbindelsen.');
+                }
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: await sdpResponse.text(),
+                });
+                setVoiceStatus('Lytter … Tal frit. Du kan afbryde 1MM når som helst.', 'listening');
             } catch (error) {
-                setVoiceStatus('Mikrofonen kunne ikke startes.');
-                addMessage(`Mikrofonfejl: ${error.message}`, 'system');
+                stopLiveVoice('Live-stemme kunne ikke startes.');
+                addMessage(`Live-stemmefejl: ${error.message}`, 'system');
+            } finally {
+                button.disabled = false;
             }
         }
 
-        async function sendVoiceTurn(userId, mimeType) {
-            const voiceButton = document.getElementById('voiceButton');
-            const recording = new Blob(audioChunks, { type: mimeType });
-            if (!recording.size) {
-                setVoiceStatus('Jeg modtog ingen lyd. Prøv igen.');
+        function handleRealtimeEvent(message) {
+            let event;
+            try {
+                event = JSON.parse(message.data);
+            } catch (error) {
                 return;
             }
 
-            voiceButton.disabled = true;
-            showTyping();
-            try {
-                const formData = new FormData();
-                const extension = mimeType.includes('ogg') ? 'ogg' : 'webm';
-                formData.append('audio', recording, `1mm-voice.${extension}`);
-                const response = await fetch(`${API_BASE}/voice/${encodeURIComponent(userId)}`, {
-                    method: 'POST',
-                    body: formData,
-                });
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.detail || `API-fejl: ${response.status}`);
-
-                hideTyping();
-                addMessage(`Du sagde: ${data.transcript}`, 'user');
-                addMessage(data.reply, 'agent');
-                setVoiceStatus('1MM har svaret. Tryk start, når du vil fortsætte.');
-
-                if (activeSpeech) activeSpeech.pause();
-                activeSpeech = new Audio(`data:audio/mp3;base64,${data.audio_data}`);
-                activeSpeech.play().catch(() => {
-                    addMessage('Svaret er klar som tekst. Browseren kunne ikke afspille lyden automatisk.', 'system');
-                });
-            } catch (error) {
-                hideTyping();
-                setVoiceStatus('Stemmesvaret fejlede. Prøv igen.');
-                addMessage(`Stemmefejl: ${error.message}`, 'system');
-            } finally {
-                voiceButton.disabled = false;
+            if (event.type === 'input_audio_buffer.speech_started') {
+                // Native semantic VAD also cancels an in-progress answer:
+                // this is the ChatGPT Live-style barge-in behavior.
+                setVoiceStatus('Lytter … 1MM stopper, når du begynder at tale.', 'listening');
+                return;
             }
+            if (event.type === 'input_audio_buffer.speech_stopped') {
+                setVoiceStatus('Tænker …', 'connecting');
+                return;
+            }
+            if (event.type === 'conversation.item.input_audio_transcription.completed' && event.transcript) {
+                addMessage(`Du sagde: ${event.transcript}`, 'user');
+                return;
+            }
+            if (event.type === 'response.output_audio_transcript.delta') {
+                if (!liveAgentMessage) {
+                    liveAgentMessage = addMessage('', 'agent');
+                    liveAgentTranscript = '';
+                }
+                liveAgentTranscript += event.delta || '';
+                liveAgentMessage.textContent = liveAgentTranscript;
+                setVoiceStatus('1MM svarer … Du kan afbryde når som helst.', 'speaking');
+                return;
+            }
+            if (event.type === 'response.output_audio_transcript.done') {
+                if (liveAgentMessage && event.transcript) {
+                    liveAgentMessage.textContent = event.transcript;
+                }
+                liveAgentMessage = null;
+                liveAgentTranscript = '';
+                setVoiceStatus('Lytter …', 'listening');
+            }
+        }
+
+        function stopLiveVoice(statusMessage = 'Live-samtalen er afsluttet.') {
+            if (realtimeDataChannel) realtimeDataChannel.close();
+            realtimeDataChannel = null;
+            if (realtimePeerConnection) realtimePeerConnection.close();
+            realtimePeerConnection = null;
+            if (realtimeLocalStream) realtimeLocalStream.getTracks().forEach(track => track.stop());
+            realtimeLocalStream = null;
+            if (realtimeAudio) {
+                realtimeAudio.pause();
+                realtimeAudio.srcObject = null;
+            }
+            realtimeAudio = null;
+            liveAgentMessage = null;
+            liveAgentTranscript = '';
+            hideLiveVoiceScreen();
+            setVoiceStatus(statusMessage);
         }
         
         function showTyping() {
