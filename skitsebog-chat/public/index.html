@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Skitsebog Sketchbook</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600&family=Instrument+Serif:ital@0;1&display=swap">
+<style>
+/* Layout: a product-photography stage on the left, a narrow bench of instrument controls on the right; stacks on phones. */
+:root{
+  --bg:#e9e5dd; --panel:#f4f1ea; --ink:#1b1b1d; --muted:#6c675f; --line:#cfc9bd;
+  --track:#d6d0c4; --accent:#1f2a44; --accent-ink:#f4f1ea; --stage:#8f897f;
+  --display:"Instrument Serif","Iowan Old Style",Georgia,serif;
+  --body:"DM Sans",Inter,"Segoe UI",system-ui,sans-serif;
+  --mono:"DM Mono",ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#121315; --panel:#1a1b1e; --ink:#ebe7df; --muted:#96918a; --line:#2e3035;
+  --track:#34363c; --accent:#e4d9bd; --accent-ink:#17181a; --stage:#2a2a2b; color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#121315; --panel:#1a1b1e; --ink:#ebe7df; --muted:#96918a; --line:#2e3035;
+  --track:#34363c; --accent:#e4d9bd; --accent-ink:#17181a; --stage:#2a2a2b; color-scheme:dark }
+
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.4;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:16px;box-sizing:border-box;display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:16px}
+*{box-sizing:border-box}
+.stage{position:relative;min-width:0;min-height:0;border-radius:6px;overflow:hidden;background:var(--stage)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+.stage canvas:active{cursor:grabbing}
+.plate{position:absolute;left:16px;bottom:14px;right:16px;display:flex;justify-content:space-between;align-items:flex-end;gap:12px;
+  pointer-events:none;color:#f1ede4;font-family:var(--mono);font-size:11px;letter-spacing:.04em;text-shadow:0 1px 2px #0008}
+.plate span:last-child{text-align:right}
+.msg{position:absolute;inset:0;display:grid;place-items:center;padding:24px;text-align:center;color:#f1ede4;font-size:15px}
+.panel{min-width:0;min-height:0;overflow-y:auto;background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:18px 18px 22px;display:flex;flex-direction:column;gap:20px}
+.head h1{font-family:var(--display);font-weight:400;font-size:30px;line-height:1.05;margin:0;text-wrap:balance}
+.head h1 em{color:var(--muted)}
+.head p{margin:6px 0 0;color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.03em}
+fieldset{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:11px;min-width:0}
+legend{padding:0 0 9px;font-size:11px;font-weight:600;letter-spacing:.11em;text-transform:uppercase;color:var(--muted);
+  width:100%;border-bottom:1px solid var(--line);margin-bottom:11px}
+.presets{display:grid;gap:6px}
+.presets label{display:grid;grid-template-columns:28px 1fr;gap:10px;align-items:center;padding:7px 9px;border:1px solid var(--line);
+  border-radius:4px;cursor:pointer}
+.presets input{position:absolute;opacity:0;pointer-events:none}
+.presets label:has(input:checked){border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.presets label:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.sw{width:28px;height:28px;border-radius:3px;border:1px solid #0003}
+.sw.linen{background:repeating-linear-gradient(0deg,#0000 0 1px,#ffffff14 1px 2px),repeating-linear-gradient(90deg,#0000 0 1px,#ffffff14 1px 2px),#232427}
+.sw.kraft{background:#b08a5e}
+.sw.buckram{background:linear-gradient(135deg,#0a0a0c 40%,#3a3a40 50%,#0a0a0c 60%)}
+.presets b{font-weight:500;display:block}
+.presets small{color:var(--muted);font-size:12px}
+.row{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:baseline}
+.row label{font-size:13px}
+.row output{font-family:var(--mono);font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums}
+.row input[type=range]{grid-column:1/-1}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:18px;background:none;margin:0;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--track)}
+input[type=range]::-moz-range-track{height:2px;background:var(--track)}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:18px;margin-top:-8px;border-radius:2px;background:var(--ink);border:0}
+input[type=range]::-moz-range-thumb{width:12px;height:18px;border-radius:2px;background:var(--ink);border:0}
+input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.switch{display:flex;justify-content:space-between;align-items:center;gap:10px;cursor:pointer;font-size:13px}
+.switch input{appearance:none;-webkit-appearance:none;width:34px;height:20px;border-radius:10px;background:var(--track);position:relative;margin:0;cursor:pointer;transition:background .15s}
+.switch input::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:var(--panel);transition:transform .15s}
+.switch input:checked{background:var(--accent)}
+.switch input:checked::after{transform:translateX(14px)}
+.switch input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button.ghost{font:inherit;font-size:13px;color:var(--ink);background:none;border:1px solid var(--line);border-radius:4px;padding:8px 10px;cursor:pointer}
+button.ghost:hover{border-color:var(--ink)}
+button.ghost:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.flip{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.note{color:var(--muted);font-size:12px;margin:0}
+@media (max-width:820px){
+  body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(280px,48%) minmax(0,1fr)}
+  .plate span:last-child{display:none}
+}
+@media (prefers-reduced-motion:reduce){.switch input,.switch input::after{transition:none}}
+</style>
+
+<style>
+/* Chat overlay — samme design-tokens som resten af siden. */
+.chat-toggle{position:fixed;top:16px;right:16px;z-index:30;font-family:var(--mono);font-size:12px;letter-spacing:.06em;
+  background:var(--accent);color:var(--accent-ink);border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
+.chat-toggle:hover{filter:brightness(1.08)}
+.chat-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.chat-panel{position:fixed;top:16px;right:16px;bottom:16px;z-index:40;width:min(380px,calc(100vw - 32px));
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 12px 40px #0003}
+.chat-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.chat-head b{font-family:var(--display);font-weight:400;font-size:20px;line-height:1.1;display:block}
+.chat-head small{color:var(--muted);font-family:var(--mono);font-size:11px;letter-spacing:.03em}
+.chat-log{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.chat-log .m{max-width:86%;padding:8px 11px;border-radius:6px;font-size:13px;white-space:pre-wrap;word-break:break-word}
+.chat-log .m.user{align-self:flex-end;background:var(--accent);color:var(--accent-ink)}
+.chat-log .m.assistant{align-self:flex-start;background:var(--bg);border:1px solid var(--line)}
+.chat-log .m.error{align-self:flex-start;background:var(--bg);border:1px dashed var(--muted);color:var(--muted)}
+.chat-form{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--line)}
+.chat-form input{flex:1;min-width:0;font:inherit;font-size:13px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:8px 10px}
+.chat-form input:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+.chat-form button{font:inherit;font-size:13px;background:var(--accent);color:var(--accent-ink);border:0;border-radius:4px;padding:8px 14px;cursor:pointer}
+.chat-form button:disabled{opacity:.5;cursor:default}
+.chat-form button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+@media (max-width:820px){.chat-panel{top:auto;bottom:16px;height:min(62vh,480px)}}
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <canvas id="gl" tabindex="0" aria-label="Raymarched hardcover sketchbook. Drag to orbit, shift-drag to pan, scroll or pinch to zoom."></canvas>
+  <div class="plate"><span id="stat">216 × 142 mm · 110 sheets</span><span>drag to orbit · shift-drag to pan · scroll to zoom</span></div>
+  <div class="msg" id="msg" hidden></div>
+</div>
+
+<form class="panel" id="panel" onsubmit="return false">
+  <div class="head">
+    <h1>Skitsebog <em>/ Sketchbook</em></h1>
+    <p>Sphere-traced SDF · half-float detail maps</p>
+  </div>
+
+  <fieldset>
+    <legend>Cover material</legend>
+    <div class="presets" role="radiogroup" aria-label="Cover material">
+      <label><input type="radio" name="mat" id="mat-linen" value="linen" checked><span class="sw linen"></span><span><b>Woven charcoal linen</b><small>Open plain weave, slubby thread</small></span></label>
+      <label><input type="radio" name="mat" id="mat-kraft" value="kraft"><span class="sw kraft"></span><span><b>Matte kraft</b><small>Unbleached board, long fibres</small></span></label>
+      <label><input type="radio" name="mat" id="mat-buckram" value="buckram"><span class="sw buckram"></span><span><b>Obsidian buckram</b><small>Tight coated cloth, soft gloss</small></span></label>
+    </div>
+    <div class="row"><label for="weave">Fabric weave</label><output id="weave-o"></output><input type="range" id="weave" min="0" max="1.5" step="0.01"></div>
+    <div class="row"><label for="grain">Paper grain</label><output id="grain-o"></output><input type="range" id="grain" min="0" max="1.5" step="0.01"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Key light</legend>
+    <div class="row"><label for="az">Direction</label><output id="az-o"></output><input type="range" id="az" min="-180" max="180" step="1"></div>
+    <div class="row"><label for="el">Height</label><output id="el-o"></output><input type="range" id="el" min="6" max="85" step="1"></div>
+    <div class="row"><label for="inten">Intensity</label><output id="inten-o"></output><input type="range" id="inten" min="0" max="2" step="0.01"></div>
+    <div class="row"><label for="warm">Colour temperature</label><output id="warm-o"></output><input type="range" id="warm" min="0" max="1" step="0.01"></div>
+    <div class="row"><label for="soft">Shadow softness</label><output id="soft-o"></output><input type="range" id="soft" min="0" max="1" step="0.01"></div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Volume</legend>
+    <div class="row"><label for="open">Cover open angle</label><output id="open-o"></output><input type="range" id="open" min="0" max="135" step="1"></div>
+    <div class="row"><label for="curl">Page-curl curvature</label><output id="curl-o"></output><input type="range" id="curl" min="0" max="1" step="0.01"></div>
+    <div class="row"><label for="sheet">Sheet</label><output id="sheet-o"></output><input type="range" id="sheet" min="0" max="110" step="1"></div>
+    <div class="flip"><button type="button" class="ghost" id="prev" aria-label="Previous sheet">‹ Previous</button><button type="button" class="ghost" id="next" aria-label="Next sheet">Next ›</button></div>
+    <label class="switch" for="band"><span>Belly band</span><input type="checkbox" id="band" checked></label>
+    <p class="note">Turning a sheet opens the cover, and opening the cover slips the band off until it closes again. Arrow keys turn sheets too.</p>
+  </fieldset>
+
+  <button type="button" class="ghost" id="reset">Reset view</button>
+</form>
+
+<button type="button" class="chat-toggle" id="chat-toggle" aria-expanded="false" aria-controls="chat-panel">CHAT</button>
+<aside class="chat-panel" id="chat-panel" hidden aria-label="Chat med Mistral">
+  <header class="chat-head">
+    <div>
+      <b>Mistral chat</b>
+      <small>mistral-small-latest · MISTRAL_API_KEY på serveren</small>
+    </div>
+    <button type="button" class="ghost" id="chat-close" aria-label="Luk chat">✕</button>
+  </header>
+  <div class="chat-log" id="chat-log" aria-live="polite"></div>
+  <form class="chat-form" id="chat-form">
+    <input type="text" id="chat-input" placeholder="Skriv en besked…" autocomplete="off" required>
+    <button type="submit" id="chat-send">Send</button>
+  </form>
+</aside>
+
+<script>
+(() => {
+'use strict';
+const $ = id => document.getElementById(id);
+const canvas = $('gl');
+const fail = t => { const m = $('msg'); m.textContent = t; m.hidden = false; };
+const gl = canvas.getContext('webgl2', { antialias:false, alpha:false, powerPreference:'high-performance' });
+if (!gl) { fail('This page needs WebGL2, which this browser or device does not provide.'); return; }
+const Q = new URLSearchParams(location.search);
+const hasFloatRT = !!gl.getExtension('EXT_color_buffer_float') || !!gl.getExtension('EXT_color_buffer_half_float');
+const MAX_SPP = +(Q.get('spp') || 28);
+let scale = +(Q.get('scale') || 0), adaptive = !scale; if (!scale) scale = 1;
+
+/* ───────── shaders ───────── */
+const VS = `#version 300 es
+void main(){ vec2 p=vec2(float((gl_VertexID<<1)&2),float(gl_VertexID&2)); gl_Position=vec4(p*2.-1.,0.,1.); }`;
+
+const FS = `#version 300 es
+precision highp float; precision highp sampler2D;
+out vec4 fragColor;
+uniform vec2 uRes, uJit; uniform vec3 uCamPos, uCamTgt; uniform float uTanHalf, uPix;
+uniform vec2 uOC; uniform float uCurl, uBandOn, uBandRot, uBandR, uGround;
+uniform vec3 uBandPos, uBandHalf;
+uniform float uTR, uTL, uTurnOn, uTurnBend, uTurnOff; uniform vec4 uTurn;
+uniform vec3 uCoverCol, uThreadCol; uniform float uRough, uSheen, uCoat, uWeave, uWeaveScale, uGrain, uPaperish;
+uniform vec3 uKeyDir, uKeyCol; uniform float uSoft, uDirect;
+uniform sampler2D uWeaveTex, uPaperTex, uTextTex;
+
+const float HX=1.08, HZ=.71, TC=.026, TP=.19, TT=TC*2.+TP;
+const float XL=-HX+TC+.004, XR=HX-.035, PCX=(XL+XR)*.5, PHX=(XR-XL)*.5, PHZ=HZ-.035, WP=XR-XL;
+const vec2 PV=vec2(-HX+TC*.5, TT-TC*.5);
+const float BTH=.0016;
+const vec3 PAGE=vec3(.68,.64,.545), CREAM=vec3(.645,.56,.395), ENDP=vec3(.034,.033,.035), INK=vec3(.020,.019,.021), GROUND=vec3(.285,.262,.232);
+
+float sdRR(vec2 p, vec2 b, float rR, float rL){ float r=p.x>0.?rR:rL; vec2 q=abs(p)-b+r; return min(max(q.x,q.y),0.)+length(max(q,0.))-r; }
+float sdSlab(vec3 p, vec3 b, float rR, float rL, float re){
+  float d2=sdRR(p.xz,b.xz,rR,rL); vec2 w=vec2(d2+re,abs(p.y)-b.y+re);
+  return min(max(w.x,w.y),0.)+length(max(w,0.))-re; }
+vec3 toCover(vec3 p){ vec2 d=p.xy-PV; return vec3(PV+vec2(uOC.x*d.x+uOC.y*d.y,-uOC.y*d.x+uOC.x*d.y),p.z); }
+vec3 toBand(vec3 p){ vec3 q=p-uBandPos; float c=cos(uBandRot),s=sin(uBandRot); q.xz=vec2(c*q.x+s*q.z,-s*q.x+c*q.z); return q; }
+float leafF(float s, float A){ return A*(1.-exp(-4.*s))*(1.-.55*s*s)-.0012; }
+float sdLeaf(vec3 p, float A){
+  float s=clamp((p.x-XL)/WP,0.,1.); float k=4.*A/WP;
+  float d=abs(p.y-(TC+uTR)-leafF(s,A))/sqrt(1.+k*k)-.0011;
+  return max(d, sdRR(p.xz-vec2(PCX,0.),vec2(PHX,PHZ),.05,.004)); }
+
+vec2 map(vec3 p){
+  vec2 r=vec2(p.y-uGround,1.);
+  float d=sdSlab(p-vec3(0.,TC*.5,0.),vec3(HX,TC*.5,HZ),.07,.008,.005);
+  vec3 q=abs(p-vec3(-HX+TC*.5,TT*.5,0.))-vec3(TC*.5,TT*.5,HZ)+.011;
+  d=min(d,length(max(q,0.))+min(max(q.x,max(q.y,q.z)),0.)-.011);
+  d=min(d,max(length(p.xy-PV)-(TC*.5+.0012),abs(p.z)-HZ));
+  if(d<r.x) r=vec2(d,3.);
+  vec3 pc=toCover(p);
+  float dc=sdSlab(pc-vec3(0.,TT-TC*.5,0.),vec3(HX,TC*.5,HZ),.07,.008,.005);
+  float g=(pc.x+HX-.105)/.02; dc+=.0035*exp(-g*g);
+  if(dc<r.x) r=vec2(dc,2.);
+  if(uTR>1e-4){   /* sheets still on the right */
+    float db=sdSlab(p-vec3(PCX,TC+uTR*.5,0.),vec3(PHX,uTR*.5,PHZ),.05,.004,min(.0012,uTR*.5));
+    if(db<r.x) r=vec2(db,5.);
+  }
+  if(uTL>1e-4){   /* sheets already turned, resting against the open cover */
+    float ds2=sdSlab(pc-vec3(PCX,TT-TC-uTL*.5,0.),vec3(PHX,uTL*.5,PHZ),.05,.004,min(.0012,uTL*.5));
+    if(ds2<r.x) r=vec2(ds2,8.);
+  }
+  if(uTurnOn>.5){ /* the sheet in the air */
+    vec2 dd=p.xy-uTurn.xy; vec2 q=vec2(uTurn.z*dd.x+uTurn.w*dd.y,-uTurn.w*dd.x+uTurn.z*dd.y);
+    float s=clamp(q.x/WP,0.,1.), k=4.*uTurnBend/WP;
+    float dt=abs(q.y-uTurnBend*4.*s*(1.-s)-uTurnOff)/sqrt(1.+k*k)-.0015;
+    dt=max(dt,sdRR(vec2(q.x-PHX,p.z),vec2(PHX,PHZ),.05,.004));
+    if(dt<r.x) r=vec2(dt,6.);
+  }
+  if(uCurl>1e-4){
+    float dl=min(sdLeaf(p,uCurl),min(sdLeaf(p,uCurl*.62),sdLeaf(p,uCurl*.3)));
+    if(dl<r.x) r=vec2(dl,6.);
+  }
+  if(uBandOn>.5){
+    vec3 b=toBand(p); vec2 w=abs(b.yz)-uBandHalf.yz+uBandR;
+    float e=length(max(w,0.))+min(max(w.x,w.y),0.)-uBandR;
+    e=max(abs(e)-BTH,abs(b.x)-uBandHalf.x);
+    if(e<r.x) r=vec2(e,7.);
+  }
+  return r;
+}
+vec3 calcN(vec3 p, float h){ vec2 e=vec2(1.,-1.)*h;
+  return normalize(e.xyy*map(p+e.xyy).x+e.yyx*map(p+e.yyx).x+e.yxy*map(p+e.yxy).x+e.xxx*map(p+e.xxx).x); }
+float shadow(vec3 ro, vec3 rd, float k){
+  float res=1., t=.003, ph=1e9;
+  for(int i=0;i<72;i++){
+    float h=map(ro+rd*t).x; if(h<.0002){res=0.;break;}
+    float y=h*h/(2.*ph), d=sqrt(max(h*h-y*y,0.));
+    res=min(res,k*d/max(1e-4,t-y)); ph=h; t+=clamp(h*.9,.002,.25); if(t>7.) break;
+  }
+  res=clamp(res,0.,1.); return res*res*(3.-2.*res);
+}
+float calcAO(vec3 p, vec3 n){
+  float o=0., s=1.;
+  for(int i=0;i<6;i++){ float h=.006+.05*float(i*i)*.2; o+=(h-map(p+n*h).x)*s; s*=.72; }
+  return clamp(1.-2.2*o,0.,1.);
+}
+float hash1(float x){ return fract(sin(x*127.1)*43758.5453); }
+float hash2(vec2 p){ p=fract(p*vec2(.1031,.1030)); p+=dot(p,p.yx+33.33); return fract((p.x+p.y)*p.x); }
+float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.-2.*f);
+  return mix(mix(hash2(i),hash2(i+vec2(1,0)),f.x),mix(hash2(i+vec2(0,1)),hash2(i+vec2(1,1)),f.x),f.y); }
+float slub(float idx, float along){   /* linen slubs: sparse bright runs along one thread */
+  float o=hash1(idx)*91.; float n=vn(vec2(idx*7.+.5,along*6.5+o)), m=vn(vec2(idx*3.+.5,along*31.+o));
+  return smoothstep(.42,.95,n)*.62+.26*m; }
+float ggx(float nh, float a){ float a2=a*a, d=nh*nh*(a2-1.)+1.; return a2/(3.14159*d*d); }
+
+vec3 envRefl(vec3 r, float rough){
+  vec3 sky=mix(vec3(.22,.20,.18),vec3(.56,.58,.63),smoothstep(-.2,.9,r.y));
+  float w=mix(.06,.5,rough);
+  float box=smoothstep(.80-w,.80+w*.35,dot(r,normalize(vec3(-.75,.45,-.2))));
+  float strip=smoothstep(.88-w,.88+w*.3,dot(r,normalize(vec3(.75,.45,-.5))));
+  return sky*.55+vec3(1.,.97,.92)*box*2.6+vec3(.75,.85,1.)*strip*1.1;
+}
+
+/* shared material outputs */
+vec3 mAlb, mN; float mRough, mSheen, mCoat, mMicro, mSpec;
+
+void boxUV(vec3 pl, vec3 nl, out vec2 uv, out vec3 T, out vec3 B){
+  vec3 a=abs(nl);
+  if(a.y>=a.x&&a.y>=a.z){uv=pl.xz;T=vec3(1,0,0);B=vec3(0,0,1);}
+  else if(a.x>=a.z){uv=pl.zy;T=vec3(0,0,1);B=vec3(0,1,0);}
+  else{uv=pl.xy;T=vec3(1,0,0);B=vec3(0,1,0);}
+}
+vec4 paperTex(vec2 uv, float foot){ return textureLod(uPaperTex,uv*4.,log2(max(foot*4.*512.,1e-4))); }
+void paperMat(vec3 pl, vec3 nl, float foot, vec3 base){
+  vec2 uv; vec3 T,B; boxUV(pl,nl,uv,T,B);
+  vec4 t=paperTex(uv,foot);
+  vec2 sl=t.gb*(.00042*4.*uGrain);
+  mN=normalize(nl-T*sl.x-B*sl.y);
+  mAlb=base*(1.+uGrain*(.11*(t.a-.5)+.09*(t.r-.5)));
+  mRough=.9; mSheen=.12; mCoat=0.; mMicro=1.; mSpec=.6;
+}
+void coverMat(vec3 pl, vec3 nl, float foot, float ndl){
+  vec2 uv; vec3 T,B; boxUV(pl,nl,uv,T,B);
+  float wf=uWeaveScale/.32;
+  vec4 w=textureLod(uWeaveTex,uv*wf,log2(max(foot*wf*1024.,1e-4)));
+  vec4 pp=paperTex(uv*.7,foot*.7);
+  vec2 sl=w.gb*(.0034*uWeave)+pp.gb*(.0007*2.8*uGrain*uPaperish);
+  mN=normalize(nl-T*sl.x-B*sl.y);
+  float wm=clamp(uWeave*1.4,0.,1.);
+  vec2 th=uv*wf*64.;
+  float tone=mix(slub(floor(th.y)+517.,uv.x),slub(floor(th.x),uv.y),w.a);
+  tone=mix(tone,.26,smoothstep(.8,3.,foot*wf*64.)*.6);
+  float big=textureLod(uPaperTex,uv*.23+.37,0.).a;
+  vec3 a=mix(uCoverCol,uThreadCol,tone*wm*(1.-.5*uPaperish));
+  a*=mix(1.,.22+.78*smoothstep(.05,.85,w.r),wm*.9);
+  a*=1.+.22*(big-.5);
+  a*=1.+uPaperish*uGrain*(.22*(pp.a-.5)+.30*(pp.r-.5));
+  mAlb=a;
+  mMicro=mix(1.,clamp(w.r*1.25+ndl*1.6-.25,0.,1.),.55*wm);
+  mRough=uRough; mSheen=uSheen; mCoat=uCoat; mSpec=mix(1.,.3+.7*w.r,wm);
+}
+
+void blockMat(vec3 pl, vec3 nl, float foot, float fy){
+  if(abs(nl.y)>.6){ paperMat(pl,nl,foot,PAGE); return; }
+  float fw=foot*110./TP, fade=1.-smoothstep(.2,.7,fw);
+  float sheet=floor(fy), along=abs(nl.x)>abs(nl.z)?pl.z:pl.x;
+  float st=cos(6.2832*fy);
+  float r1=hash1(sheet), streak=textureLod(uPaperTex,vec2(along*1.3,sheet*.013),0.).a;
+  float sig=cos(6.2832*(fy/5.5+.3))*(1.-smoothstep(.2,.7,fw/5.5));
+  mAlb=PAGE*vec3(.93,.91,.87)*(.86+.07*st*fade+.08*(r1-.5)*fade+.045*sig+.14*(streak-.5));
+  mN=normalize(nl+vec3(0.,-.32*sin(6.2832*fy)*fade,0.)); mRough=.92; mSheen=.1; mSpec=.5;
+}
+vec3 shadeScene(vec3 ro, vec3 rd){
+  float t=0., id=0.;
+  for(int i=0;i<180;i++){
+    vec2 h=map(ro+rd*t);
+    if(h.x<.00006+.07*t*uPix){id=h.y;break;}
+    t+=h.x*.9; if(t>48.) break;
+  }
+  vec3 fogc=vec3(.035,.033,.031);
+  if(id<.5) return fogc;
+  vec3 p=ro+rd*t;
+  vec3 n=calcN(p,max(.00012,.35*t*uPix));
+  vec3 v=-rd; float nvg=max(dot(n,v),0.);
+  float foot=t*uPix/max(nvg,.22);
+  vec3 L=uKeyDir; float ndlg=dot(n,L);
+  mAlb=vec3(.5); mN=n; mRough=.9; mSheen=0.; mCoat=0.; mMicro=1.; mSpec=1.;
+
+  if(id<1.5){ /* ground: a matte paper sweep */
+    vec4 a=textureLod(uPaperTex,p.xz*.31,1.), b=paperTex(p.xz*.6,foot*.6);
+    mAlb=GROUND*(1.+.10*(a.a-.5)+.05*(b.r-.5)*uGrain);
+    mN=normalize(n-vec3(b.g,0.,b.b)*.0006*uGrain); mRough=.95; mSpec=.4;
+  } else if(id<2.5){ /* front cover, hinged frame */
+    vec3 pl=toCover(p); vec3 nl=vec3(uOC.x*n.x+uOC.y*n.y,-uOC.y*n.x+uOC.x*n.y,n.z);
+    bool inner=nl.y<-.5 && sdRR(pl.xz-vec2(.012,0.),vec2(HX-.04,HZ-.03),.045,.004)<0.;
+    if(inner) paperMat(pl,nl,foot,ENDP); else coverMat(pl,nl,foot,ndlg);
+    mN=vec3(uOC.x*mN.x-uOC.y*mN.y,uOC.y*mN.x+uOC.x*mN.y,mN.z);
+  } else if(id<3.5){
+    if(n.y>.6 && p.y>TC*.6 && p.y<TC*1.4 && sdRR(p.xz-vec2(.012,0.),vec2(HX-.04,HZ-.03),.045,.004)<0.) paperMat(p,n,foot,ENDP);
+    else coverMat(p,n,foot,ndlg);
+  } else if(id<5.5){ blockMat(p,n,foot,(p.y-TC)/TP*110.);
+  } else if(id<6.5){ paperMat(p,n,foot,PAGE);
+  } else if(id<7.5){ /* belly band */
+    vec3 b=toBand(p); float c=cos(uBandRot), s=sin(uBandRot);
+    vec3 nl=vec3(c*n.x+s*n.z,n.y,-s*n.x+c*n.z);
+    paperMat(b,nl,foot,CREAM);
+    if(nl.y>.5 && b.y>0.){
+      float bw=uBandHalf.x*2.; vec2 uv=vec2(b.x/bw+.5,b.z/(bw*.5)+.5);
+      if(uv.x>0.&&uv.x<1.&&uv.y>0.&&uv.y<1.){
+        float px=t*uPix/bw*2048., aa=clamp(px*.55/sqrt(max(nvg,.2)),.7,24.);
+        float sd=texture(uTextTex,uv).r*32.-1.3;
+        vec2 e=vec2(1.5/2048.,1.5/1024.);
+        vec2 gr=vec2(texture(uTextTex,uv+vec2(e.x,0.)).r-texture(uTextTex,uv-vec2(e.x,0.)).r,
+                     texture(uTextTex,uv+vec2(0.,e.y)).r-texture(uTextTex,uv-vec2(0.,e.y)).r)*32./3.;
+        float ink=1.-smoothstep(-aa,aa,sd);
+        float bell=exp(-sd*sd/7.)*clamp(1.4/aa,0.,1.);
+        mN=normalize(mN+vec3(gr.x,0.,gr.y)*bell*.22);   /* letterpress bite */
+        mAlb=mix(mAlb,INK*(1.+.5*(mAlb.g-.7)),ink*.96);
+        mRough=mix(mRough,.55,ink); mSpec=mix(mSpec,1.4,ink);
+      }
+    }
+    mN=vec3(c*mN.x-s*mN.z,mN.y,s*mN.x+c*mN.z);
+  } else { /* turned stack, hinged with the cover */
+    vec3 pl=toCover(p); vec3 nl=vec3(uOC.x*n.x+uOC.y*n.y,-uOC.y*n.x+uOC.x*n.y,n.z);
+    blockMat(pl,nl,foot,(pl.y-(TT-TC-uTL))/TP*110.+37.);
+    mN=vec3(uOC.x*mN.x-uOC.y*mN.y,uOC.y*mN.x+uOC.x*mN.y,mN.z);
+  }
+
+  float sh=ndlg>0.?shadow(p+n*.0012,L,mix(46.,5.,uSoft)):0.;
+  float ao=calcAO(p,n);
+  vec3 N=mN; float nl_=max(dot(N,L),0.)*smoothstep(-.02,.12,ndlg);
+  float nv=max(dot(N,v),1e-3);
+  vec3 H=normalize(L+v); float nh=max(dot(N,H),0.), lh=max(dot(L,H),0.);
+  float pool=mix(.22,1.,smoothstep(6.5,.9,length(p.xz-vec2(.25,0.))));
+  vec3 key=uKeyCol*pool*sh;
+  vec3 sky=mix(vec3(.21,.19,.165),vec3(.46,.475,.51),N.y*.5+.5)*.6;
+  vec3 rimD=normalize(vec3(.55,.35,-.75));
+  vec3 col=mAlb*(key*nl_*mMicro + sky*ao*pool + vec3(.6,.66,.78)*.2*max(dot(N,rimD),0.)*ao);
+  float F=.04+.96*pow(1.-lh,5.);
+  float a=mRough*mRough;
+  col+=key*nl_*mSpec*ggx(nh,a)*F*.25/max(lh*lh,.08);
+  col+=key*nl_*mCoat*ggx(nh,.07)*(.04+.96*pow(1.-lh,5.))*.25/max(lh*lh,.08);
+  float fz=pow(1.-nv,3.);
+  col+=mSheen*fz*(key*(.25+.75*nl_)*.20+sky*ao*.5)*(mAlb+.08);
+  vec3 R=reflect(rd,N);
+  float Fe=.04+.96*pow(1.-nv,5.);
+  col+=envRefl(R,mRough)*Fe*ao*pool*mSpec*mix(1.,.10,mRough);
+  col+=envRefl(R,.12)*(Fe+.015)*ao*pool*mCoat*.42*(.55+.45*mSpec);
+  return mix(col,fogc,smoothstep(6.,30.,t));
+}
+vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
+void main(){
+  vec2 uv=(gl_FragCoord.xy+uJit-.5*uRes)/uRes.y;
+  vec3 f=normalize(uCamTgt-uCamPos), r=normalize(cross(f,vec3(0,1,0))), u=cross(r,f);
+  vec3 rd=normalize(f+(uv.x*r+uv.y*u)*2.*uTanHalf);
+  vec3 c=shadeScene(uCamPos,rd);
+  if(uDirect>.5) c=pow(aces(c*.86),vec3(1./2.2));
+  fragColor=vec4(c,1.);
+}`;
+
+const PS = `#version 300 es
+precision highp float; out vec4 o; uniform sampler2D uTex; uniform vec2 uRes; uniform float uDirect, uSeed;
+vec3 aces(vec3 x){ return clamp((x*(2.51*x+.03))/(x*(2.43*x+.59)+.14),0.,1.); }
+void main(){
+  vec2 uv=gl_FragCoord.xy/uRes; vec3 c=texture(uTex,uv).rgb;
+  if(uDirect<.5){ vec2 q=uv-.5; c*=1.-.42*dot(q,q)*1.6; c=pow(aces(c*.86),vec3(1./2.2)); }
+  float n=fract(sin(dot(gl_FragCoord.xy+uSeed,vec2(12.9898,78.233)))*43758.5453);
+  o=vec4(c+(n-.5)/255.,1.);
+}`;
+
+function prog(vs, fs){
+  const p = gl.createProgram();
+  for (const [t, s] of [[gl.VERTEX_SHADER, vs], [gl.FRAGMENT_SHADER, fs]]) {
+    const sh = gl.createShader(t); gl.shaderSource(sh, s); gl.compileShader(sh);
+    if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(sh));
+    gl.attachShader(p, sh);
+  }
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const u = {}; const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const nm = gl.getActiveUniform(p, i).name; u[nm] = gl.getUniformLocation(p, nm); }
+  return { p, u };
+}
+let scene, post;
+try { scene = prog(VS, FS); post = prog(VS, PS); }
+catch (e) { console.error(e); fail('The shader failed to compile on this GPU: ' + String(e.message).slice(0, 200)); return; }
+gl.bindVertexArray(gl.createVertexArray());
+
+let pos = 0, slip = 0, frame = 0, lastT = 0, timing = [], lastSig = '';
+function dirty(){ frame = 0; }
+
+/* ───────── half-float detail textures ───────── */
+function rng(seed){ let a = seed >>> 0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function pnoise(px, py, seed){            // tileable value noise with integer periods
+  const r = rng(seed), g = new Float32Array(px * py); for (let i = 0; i < g.length; i++) g[i] = r();
+  return (x, y) => {
+    const xi = Math.floor(x), yi = Math.floor(y); let fx = x - xi, fy = y - yi;
+    fx = fx * fx * (3 - 2 * fx); fy = fy * fy * (3 - 2 * fy);
+    const x0 = ((xi % px) + px) % px, x1 = (x0 + 1) % px, y0 = ((yi % py) + py) % py, y1 = (y0 + 1) % py;
+    const a = g[y0 * px + x0], b = g[y0 * px + x1], c = g[y1 * px + x0], d = g[y1 * px + x1];
+    return a + (b - a) * fx + (c - a) * fy + (a - b - c + d) * fx * fy;
+  };
+}
+// pack height + tone into RGBA (h, dh/du, dh/dv, tone), build a float mip chain, upload as RGBA16F
+function uploadDetail(unit, N, H, A){
+  let w = N, d = new Float32Array(N * N * 4);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const i = y * N + x, xm = y * N + (x + N - 1) % N, xp = y * N + (x + 1) % N, ym = ((y + N - 1) % N) * N + x, yp = ((y + 1) % N) * N + x;
+    d[i * 4] = H[i]; d[i * 4 + 1] = (H[xp] - H[xm]) * .5 * N; d[i * 4 + 2] = (H[yp] - H[ym]) * .5 * N; d[i * 4 + 3] = A[i];
+  }
+  const tex = gl.createTexture(); gl.activeTexture(gl.TEXTURE0 + unit); gl.bindTexture(gl.TEXTURE_2D, tex);
+  for (let lvl = 0; ; lvl++) {
+    gl.texImage2D(gl.TEXTURE_2D, lvl, gl.RGBA16F, w, w, 0, gl.RGBA, gl.FLOAT, d);
+    if (w === 1) break;
+    const h = w >> 1, n = new Float32Array(h * h * 4);
+    for (let y = 0; y < h; y++) for (let x = 0; x < h; x++) for (let c = 0; c < 4; c++)
+      n[(y * h + x) * 4 + c] = .25 * (d[((2 * y) * w + 2 * x) * 4 + c] + d[((2 * y) * w + 2 * x + 1) * 4 + c] + d[((2 * y + 1) * w + 2 * x) * 4 + c] + d[((2 * y + 1) * w + 2 * x + 1) * 4 + c]);
+    d = n; w = h;
+  }
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
+  return tex;
+}
+function makeWeave(){                    // plain weave: 64 × 64 slubby threads per tile
+  const N = 1024, n = 64, P = N / n, H = new Float32Array(N * N), A = new Float32Array(N * N);
+  const nw = pnoise(n, 16, 11), nf = pnoise(16, n, 23), wob = pnoise(n, 8, 31), wob2 = pnoise(8, n, 37);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const v = y / P, u0 = x / P;
+    const u = u0 + .16 * (wob(Math.floor(u0), v * .125) - .5), vv = v + .16 * (wob2(u0 * .125, Math.floor(v)) - .5);
+    const i = ((Math.floor(u) % n) + n) % n, j = ((Math.floor(vv) % n) + n) % n;
+    const a = (u - Math.floor(u) - .5) * 2, b = (vv - Math.floor(vv) - .5) * 2;
+    const wi = .74 + .34 * nw(i, v * .25), wj = .74 + .34 * nf(u0 * .25, j);
+    const aw = a / wi, bw = b / wj;
+    let hW = Math.sqrt(Math.max(0, 1 - aw * aw)) * (.52 + .46 * Math.sin(Math.PI * (v + i)));
+    let hF = Math.sqrt(Math.max(0, 1 - bw * bw)) * (.52 - .46 * Math.sin(Math.PI * (u0 + j)));
+    hW *= 1 + .07 * Math.sin(6.2832 * (v * 2.5 + a * .9)); hF *= 1 + .07 * Math.sin(6.2832 * (u0 * 2.5 + b * .9));
+    const k = y * N + x;
+    if (hW > hF) { H[k] = hW; A[k] = 1; } else { H[k] = hF; A[k] = 0; }
+  }
+  return uploadDetail(0, N, H, A);
+}
+function makePaper(){                    // fibrous sheet: fbm tooth plus splatted fibres
+  const N = 512, H = new Float32Array(N * N), A = new Float32Array(N * N), r = rng(4242);
+  const o = [pnoise(64, 64, 1), pnoise(128, 128, 2), pnoise(256, 256, 3)], m1 = pnoise(5, 5, 8), m2 = pnoise(11, 11, 9), m3 = pnoise(24, 24, 10);
+  for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+    const u = x / N, v = y / N;
+    H[y * N + x] = .5 * o[0](u * 64, v * 64) + .3 * o[1](u * 128, v * 128) + .22 * o[2](u * 256, v * 256);
+    A[y * N + x] = .5 * m1(u * 5, v * 5) + .3 * m2(u * 11, v * 11) + .2 * m3(u * 24, v * 24);
+  }
+  for (let f = 0; f < 5200; f++) {
+    let x = r() * N, y = r() * N, ang = r() * 6.2832; const len = 10 + r() * 46, bend = (r() - .5) * .12, w = (r() < .8 ? 1 : -1) * (.10 + .22 * r());
+    for (let s = 0; s < len; s += .6) {
+      const xi = ((Math.round(x) % N) + N) % N, yi = ((Math.round(y) % N) + N) % N;
+      H[yi * N + xi] += w; x += Math.cos(ang) * .6; y += Math.sin(ang) * .6; ang += bend * .6;
+    }
+  }
+  for (let pass = 0; pass < 2; pass++) {
+    const S = H.slice();
+    for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const xm = (x + N - 1) % N, xp = (x + 1) % N, ym = (y + N - 1) % N, yp = (y + 1) % N;
+      H[y * N + x] = (4 * S[y * N + x] + 2 * (S[y * N + xm] + S[y * N + xp] + S[ym * N + x] + S[yp * N + x]) + S[ym * N + xm] + S[ym * N + xp] + S[yp * N + xm] + S[yp * N + xp]) / 16;
+    }
+  }
+  let mean = 0, sd = 0; for (const h of H) mean += h; mean /= H.length; for (const h of H) sd += (h - mean) ** 2; sd = Math.sqrt(sd / H.length);
+  for (let i = 0; i < H.length; i++) H[i] = Math.min(1, Math.max(0, .5 + (H[i] - mean) / (5 * sd)));
+  return uploadDetail(1, N, H, A);
+}
+function edt(f, w, h){                   // Felzenszwalb squared distance transform, in place
+  const m = Math.max(w, h), d = new Float64Array(m), v = new Int32Array(m), z = new Float64Array(m + 1), g = new Float64Array(m);
+  const pass = (off, stride, n) => {
+    for (let i = 0; i < n; i++) g[i] = f[off + i * stride];
+    let k = 0; v[0] = 0; z[0] = -1e20; z[1] = 1e20;
+    for (let q = 1; q < n; q++) {
+      let s; do { const p = v[k]; s = ((g[q] + q * q) - (g[p] + p * p)) / (2 * q - 2 * p); } while (s <= z[k] && --k >= 0);
+      k++; v[k] = q; z[k] = s; z[k + 1] = 1e20;
+    }
+    k = 0;
+    for (let q = 0; q < n; q++) { while (z[k + 1] < q) k++; const p = v[k]; d[q] = (q - p) * (q - p) + g[p]; }
+    for (let i = 0; i < n; i++) f[off + i * stride] = d[i];
+  };
+  for (let x = 0; x < w; x++) pass(x, w, h);
+  for (let y = 0; y < h; y++) pass(y * w, 1, w);
+}
+let textTex = null;
+function makeText(){                     // belly-band typography → signed distance field in R16F
+  const W = 2048, Hh = 1024, c = document.createElement('canvas'); c.width = W; c.height = Hh;
+  const x = c.getContext('2d', { willReadFrequently:true });
+  x.fillStyle = '#000'; x.fillRect(0, 0, W, Hh); x.fillStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'alphabetic';
+  const serif = '"Instrument Serif","Iowan Old Style",Georgia,"Times New Roman",serif', sans = '500 ' + 'SIZEpx "DM Sans",Inter,"Helvetica Neue",Arial,sans-serif';
+  const title = 'Skitsebog / Sketchbook';
+  let fs = 200; x.font = fs + 'px ' + serif; fs *= 1700 / x.measureText(title).width; x.font = fs + 'px ' + serif;
+  x.fillText(title, W / 2, 478);
+  x.fillRect(W / 2 - 52, 600, 104, 5);
+  const fs2 = Math.round(fs * .40); x.font = sans.replace('SIZE', fs2);
+  try { x.letterSpacing = (fs2 * .2) + 'px'; } catch (e) {}
+  x.fillText('110 sheets', W / 2 + fs2 * .1, 760);
+  const img = x.getImageData(0, 0, W, Hh).data, n = W * Hh, a = new Float32Array(n), b = new Float32Array(n), cov = new Float32Array(n);
+  for (let i = 0; i < n; i++) { cov[i] = img[i * 4] / 255; const on = cov[i] > .5; a[i] = on ? 0 : 1e12; b[i] = on ? 1e12 : 0; }
+  edt(a, W, Hh); edt(b, W, Hh);
+  const sd = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = Math.sqrt(a[i]) - Math.sqrt(b[i]); s += s > 0 ? -.5 : .5;
+    if (cov[i] > .02 && cov[i] < .98) s = .5 - cov[i];          // sub-pixel edge from coverage
+    sd[i] = Math.max(-1, Math.min(1, s / 32));
+  }
+  if (!textTex) textTex = gl.createTexture();
+  gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, textTex);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.R16F, W, Hh, 0, gl.RED, gl.FLOAT, sd);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  dirty();
+}
+makeWeave(); makePaper(); makeText();
+if (document.fonts && document.fonts.load) {
+  Promise.all([document.fonts.load('200px "Instrument Serif"'), document.fonts.load('500 60px "DM Sans"')]).then(makeText, () => {});
+}
+
+/* ───────── state ───────── */
+const srgb = h => [1, 3, 5].map(i => Math.pow(parseInt(h.slice(i, i + 2), 16) / 255, 2.2));
+const PRESETS = {
+  linen:   { cover:srgb('#17171a'), thread:srgb('#434346'), rough:.84, sheen:.5,  coat:0,   wscale:.65,  paperish:0, weave:.9,  grain:.6 },
+  kraft:   { cover:srgb('#a5845e'), thread:srgb('#c8a67a'), rough:.93, sheen:.12, coat:0,   wscale:1.5,  paperish:1, weave:.08, grain:1.0 },
+  buckram: { cover:srgb('#0b0b0d'), thread:srgb('#1e1e21'), rough:.46, sheen:.2,  coat:.85, wscale:1.2,  paperish:0, weave:.6,  grain:.6 },
+};
+const S = { mat:'linen', weave:.9, grain:.6, az:-52, el:34, inten:1, warm:.42, soft:.45, open:0, curl:.45, band:true, sheet:0 };
+const VIEW0 = { yaw:.5, pitch:.78, dist:5.6, px:0, pz:0 };
+const cam = { ...VIEW0 };
+
+/* ───────── controls ───────── */
+const fmt = {
+  weave:v => (+v).toFixed(2), grain:v => (+v).toFixed(2), az:v => v + '°', el:v => v + '°', inten:v => (+v).toFixed(2) + '×',
+  warm:v => Math.round((7500 - v * 4500) / 50) * 50 + ' K', soft:v => Math.round(v * 100) + '%', open:v => v + '°', curl:v => (+v).toFixed(2), sheet:v => Math.round(v) + ' / 110',
+};
+function syncUI(){
+  for (const k in fmt) { $(k).value = S[k]; $(k + '-o').textContent = fmt[k](S[k]); }
+  $('band').checked = S.band; $('mat-' + S.mat).checked = true;
+}
+for (const k in fmt) $(k).addEventListener('input', e => { S[k] = +e.target.value; $(k + '-o').textContent = fmt[k](S[k]); dirty(); });
+function turnTo(n){
+  S.sheet = Math.min(110, Math.max(0, n));
+  if (S.sheet !== Math.round(pos) && S.open < 95) S.open = 110;      // a sheet cannot turn under a shut cover
+  syncUI(); dirty();
+}
+$('sheet').addEventListener('input', e => turnTo(+e.target.value));
+$('prev').addEventListener('click', () => turnTo(Math.round(S.sheet) - 1));
+$('next').addEventListener('click', () => turnTo(Math.round(S.sheet) + 1));
+canvas.addEventListener('keydown', e => {
+  if (e.key === 'ArrowRight') { turnTo(Math.round(S.sheet) + 1); e.preventDefault(); }
+  if (e.key === 'ArrowLeft') { turnTo(Math.round(S.sheet) - 1); e.preventDefault(); }
+});
+$('band').addEventListener('change', e => { S.band = e.target.checked; dirty(); });
+for (const r of document.querySelectorAll('input[name=mat]')) r.addEventListener('change', e => {
+  S.mat = e.target.value; S.weave = PRESETS[S.mat].weave; S.grain = PRESETS[S.mat].grain; syncUI(); dirty();
+});
+$('reset').addEventListener('click', () => { Object.assign(cam, VIEW0); dirty(); });
+syncUI();
+
+const ptrs = new Map(); let pinch = 0;
+let panning = false;
+canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, [e.clientX, e.clientY]); pinch = 0; panning = e.shiftKey || e.button === 2; });
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+canvas.addEventListener('pointermove', e => {
+  const p = ptrs.get(e.pointerId); if (!p) return;
+  const dx = e.clientX - p[0], dy = e.clientY - p[1]; p[0] = e.clientX; p[1] = e.clientY;
+  if (ptrs.size === 1 && panning) { const k = cam.dist * .0011, c = Math.cos(cam.yaw), s = Math.sin(cam.yaw);
+    cam.px = Math.min(2.5, Math.max(-2.5, cam.px - c * dx * k - s * dy * k)); cam.pz = Math.min(2.5, Math.max(-2.5, cam.pz + s * dx * k - c * dy * k)); }
+  else if (ptrs.size === 1) { cam.yaw -= dx * .006; cam.pitch = Math.min(1.5, Math.max(.08, cam.pitch + dy * .005)); }
+  else { const [a, b] = [...ptrs.values()], d = Math.hypot(a[0] - b[0], a[1] - b[1]); if (pinch) cam.dist = Math.min(14, Math.max(1.6, cam.dist * pinch / d)); pinch = d; }
+  dirty();
+});
+const up = e => { ptrs.delete(e.pointerId); pinch = 0; };
+canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+canvas.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.min(14, Math.max(1.6, cam.dist * Math.exp(e.deltaY * .0012))); dirty(); }, { passive:false });
+
+/* ───────── render targets ───────── */
+let fbo = null, accTex = null, W = 0, H = 0;
+function resize(){
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = Math.max(2, Math.round(canvas.clientWidth * dpr)), h = Math.max(2, Math.round(canvas.clientHeight * dpr));
+  if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+  const rw = Math.max(2, Math.round(w * scale)), rh = Math.max(2, Math.round(h * scale));
+  if (rw === W && rh === H) return;
+  W = rw; H = rh;
+  if (!fbo) { fbo = gl.createFramebuffer(); accTex = gl.createTexture(); }
+  gl.activeTexture(gl.TEXTURE3); gl.bindTexture(gl.TEXTURE_2D, accTex);
+  if (hasFloatRT) gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA16F, W, H, 0, gl.RGBA, gl.HALF_FLOAT, null);
+  else gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, W, H, 0, gl.RGBA, gl.UNSIGNED_BYTE, null);
+  for (const [k, v] of [[gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR], [gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, accTex, 0);
+  dirty();
+}
+new ResizeObserver(resize).observe(canvas);
+
+/* ───────── frame ───────── */
+const mix = (a, b, t) => a + (b - a) * t, ease = t => { t = Math.min(1, Math.max(0, t)); return t * t * (3 - 2 * t); };
+const halton = (i, b) => { let f = 1, r = 0; while (i > 0) { f /= b; r += f * (i % b); i = Math.floor(i / b); } return r; };
+const HX = 1.08, HZ = .71, TT = .242, BTH = .0016, BW = .96, BX = .30;
+function tick(now){
+  requestAnimationFrame(tick);
+  const dt = Math.min(.05, (now - lastT) / 1000 || 0); lastT = now;
+  resize();
+  // belly band slips off before the cover may lift, and returns once it is shut
+  const want = S.band && S.open > .5 ? 1 : 0;
+  if (!S.band) slip = S.open > .5 ? 1 : 0;
+  else if (slip !== want) { slip = want > slip ? Math.min(1, slip + dt / .9) : Math.max(0, slip - dt / .9); dirty(); }
+  const openDeg = S.band ? S.open * ease((slip - .45) / .5) : S.open, th = openDeg * Math.PI / 180;
+  const e1 = ease(slip / .55), e2 = ease((slip - .45) / .55);
+  const hy0 = TT / 2 + .002 + BTH, hz0 = HZ + .002 + BTH, hyF = .0045;
+  const ground = S.band ? mix(-(.002 + 2 * BTH + .0002), 0, e1) : 0;
+  const band = { pos:[mix(BX, HX + .16 + BW / 2, e1), mix(TT / 2, hyF + BTH + .0003, e2), mix(0, .06, e2)], rot:mix(0, -.11, e2),
+    half:[BW / 2, mix(hy0, hyF, e2), mix(hz0, hz0 + hy0 - hyF, e2)], r:mix(.011, hyF, e2) };
+  // sheets: pos counts turned sheets; its fraction is the sheet in the air
+  if (pos !== S.sheet) {
+    const d = S.sheet - pos, v = Math.max(1.5, Math.abs(d) * 2.4) * dt;
+    pos = openDeg < 60 || Math.abs(d) <= v ? S.sheet : pos + Math.sign(d) * v; dirty();
+  }
+  const TC = .026, TP = .19, XL = -HX + TC + .004, PVx = -HX + TC / 2, PVy = TT - TC / 2;
+  const nL = Math.floor(pos + 1e-6), kt = pos - nL, turning = kt > 1e-4, ke = ease(kt);
+  const tl = TP * nL / 110, tr = TP * (110 - nL - (turning ? 1 : 0)) / 110;
+  const ct = Math.cos(th), st = Math.sin(th), dxh = XL - PVx, dyh = -(TC / 2 + tl);
+  const pR = [XL, TC + tr], pL = [PVx + ct * dxh - st * dyh, PVy + st * dxh + ct * dyh], phi = ke * th;
+  const turn = [mix(pR[0], pL[0], ke), mix(pR[1], pL[1], ke), Math.cos(phi), Math.sin(phi)];
+  const curlA = S.curl * Math.min(.42, .2 * 2.07 * Math.tan(Math.min(th, 1.4))) * Math.min(1, (110 - pos) / 8) * (1 - .6 * nL / 110);
+  $('stat').textContent = pos > 0 || openDeg > 1 ? '216 × 142 mm · sheet ' + Math.min(110, Math.round(pos)) + ' / 110' : '216 × 142 mm · 110 sheets';
+  const sig = [openDeg, slip, pos].join();
+  if (sig !== lastSig) { lastSig = sig; dirty(); }
+  if (frame >= (hasFloatRT ? MAX_SPP : 1) || !W) return;
+
+  if (adaptive && frame >= 2 && frame < 10) { timing.push(dt); if (timing.length >= 6) { const avg = timing.reduce((a, b) => a + b) / timing.length; timing = [];
+    if (avg > .045 && scale > .45) { scale *= .75; resize(); return; } } }
+
+  const asp = W / H, fit = Math.max(1, 1.42 / asp), sn = Math.sin(Math.min(th, Math.PI / 2));
+  const tgt = [.06 + .34 * e1 * (S.band ? 1 : 0) - .1 * sn + cam.px, .10 + .55 * sn, cam.pz];
+  const dist = cam.dist * fit * (1 + .42 * sn + .13 * e1 * (S.band ? 1 : 0));
+  const cp = Math.cos(cam.pitch), eye = [tgt[0] + dist * cp * Math.sin(cam.yaw), tgt[1] + dist * Math.sin(cam.pitch), tgt[2] + dist * cp * Math.cos(cam.yaw)];
+  const tanHalf = Math.tan(13.5 * Math.PI / 180);
+  const P = PRESETS[S.mat], az = S.az * Math.PI / 180, el = S.el * Math.PI / 180, w = S.warm;
+  const cool = [.78, .88, 1], mid = [1, .96, .89], hot = [1, .72, .44];
+  const kc = [0, 1, 2].map(i => (w < .5 ? mix(cool[i], mid[i], w * 2) : mix(mid[i], hot[i], w * 2 - 2 + 1)) * 2.5 * S.inten);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, fbo); gl.viewport(0, 0, W, H);
+  gl.useProgram(scene.p); const u = scene.u;
+  gl.uniform2f(u.uRes, W, H); gl.uniform2f(u.uJit, halton(frame + 1, 2) - .5, halton(frame + 1, 3) - .5);
+  gl.uniform3fv(u.uCamPos, eye); gl.uniform3fv(u.uCamTgt, tgt); gl.uniform1f(u.uTanHalf, tanHalf); gl.uniform1f(u.uPix, 2 * tanHalf / H);
+  gl.uniform2f(u.uOC, Math.cos(th), Math.sin(th)); gl.uniform1f(u.uCurl, curlA);
+  gl.uniform1f(u.uTR, tr); gl.uniform1f(u.uTL, tl); gl.uniform1f(u.uTurnOn, turning ? 1 : 0); gl.uniform4fv(u.uTurn, turn);
+  gl.uniform1f(u.uTurnBend, -.15 * Math.sin(Math.PI * ke)); gl.uniform1f(u.uTurnOff, mix(.0012, -.0012, ke));
+  gl.uniform1f(u.uBandOn, S.band ? 1 : 0); gl.uniform3fv(u.uBandPos, band.pos); gl.uniform1f(u.uBandRot, band.rot);
+  gl.uniform3fv(u.uBandHalf, band.half); gl.uniform1f(u.uBandR, band.r); gl.uniform1f(u.uGround, ground);
+  gl.uniform3fv(u.uCoverCol, P.cover); gl.uniform3fv(u.uThreadCol, P.thread); gl.uniform1f(u.uRough, P.rough); gl.uniform1f(u.uSheen, P.sheen);
+  gl.uniform1f(u.uCoat, P.coat); gl.uniform1f(u.uWeave, S.weave); gl.uniform1f(u.uWeaveScale, P.wscale); gl.uniform1f(u.uGrain, S.grain); gl.uniform1f(u.uPaperish, P.paperish);
+  gl.uniform3f(u.uKeyDir, Math.cos(el) * Math.sin(az), Math.sin(el), Math.cos(el) * Math.cos(az)); gl.uniform3fv(u.uKeyCol, kc);
+  gl.uniform1f(u.uSoft, S.soft); gl.uniform1f(u.uDirect, hasFloatRT ? 0 : 1);
+  gl.uniform1i(u.uWeaveTex, 0); gl.uniform1i(u.uPaperTex, 1); gl.uniform1i(u.uTextTex, 2);
+  if (hasFloatRT && frame > 0) { gl.enable(gl.BLEND); gl.blendColor(0, 0, 0, 1 / (frame + 1)); gl.blendFunc(gl.CONSTANT_ALPHA, gl.ONE_MINUS_CONSTANT_ALPHA); }
+  gl.drawArrays(gl.TRIANGLES, 0, 3); gl.disable(gl.BLEND);
+
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null); gl.viewport(0, 0, canvas.width, canvas.height);
+  gl.useProgram(post.p); gl.uniform1i(post.u.uTex, 3); gl.uniform2f(post.u.uRes, canvas.width, canvas.height);
+  gl.uniform1f(post.u.uDirect, hasFloatRT ? 0 : 1); gl.uniform1f(post.u.uSeed, frame * 17.13);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+  frame++;
+}
+requestAnimationFrame(tick);
+window.__sk = { S, cam, syncUI, dirty, get frame(){ return frame; }, get slip(){ return slip; }, get pos(){ return pos; }, max: hasFloatRT ? MAX_SPP : 1 };
+})();
+</script>
+
+<script type="module" src="/chat.js"></script>
+</body>
+</html>
