@@ -1,0 +1,21 @@
+{
+  "name": "skitsebog-chat",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal web app: Skitsebog-forside + chat mod Mistral API via det officielle TypeScript SDK",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "start": "tsx server/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@mistralai/mistralai": "^1.15.1",
+    "dotenv": "^17.4.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.18.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3"
+  }
+}
