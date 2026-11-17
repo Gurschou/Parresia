@@ -1,0 +1,22 @@
+{
+  "name": "behavioral-modeling-platform",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Advanced Behavioral Modeling: transskript- og lydanalyse med Claude, rapporter, dashboard og CLI",
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=20.11"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @bm/web dev",
+    "build": "pnpm --filter @bm/web build && pnpm --filter @bm/cli build",
+    "start": "pnpm --filter @bm/web start",
+    "test": "pnpm -r --if-present test",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "lint": "pnpm -r --if-present lint",
+    "db:migrate": "pnpm --filter @bm/web db:migrate",
+    "db:generate": "pnpm --filter @bm/web db:generate",
+    "e2e": "pnpm --filter @bm/web e2e",
+    "cli": "pnpm --filter @bm/cli exec tsx src/index.ts"
+  }
+}

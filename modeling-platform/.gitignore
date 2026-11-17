@@ -1,0 +1,30 @@
+# The parent repo ignores lib/ and .env for Python; we need lib/ dirs here.
+!lib/
+!**/lib/
+
+node_modules/
+.next/
+dist/
+coverage/
+*.tsbuildinfo
+.turbo/
+next-env.d.ts
+
+# Local data (PGlite database, uploads, CLI output)
+data/
+apps/web/data/
+uploads/
+out/
+*.analysis.json
+*.report.md
+*.report.pdf
+
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Playwright
+test-results/
+playwright-report/
