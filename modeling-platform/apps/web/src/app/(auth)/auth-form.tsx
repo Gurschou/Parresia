@@ -2,7 +2,7 @@
 
 import { useActionState } from "react";
 import Link from "next/link";
-import { AlertCircle, ArrowRight, Loader2 } from "lucide-react";
+import { AlertCircle, ArrowRight, Loader2, Sparkles } from "lucide-react";
 import { Alert } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -74,6 +74,26 @@ export function AuthForm({ mode, callbackUrl }: { mode: "login" | "register"; ca
           </>
         )}
       </p>
+    </form>
+  );
+}
+
+/** Ét-klik login på demokontoen (vises kun når serveren kører med DEMO_LOGIN=1). */
+export function DemoLoginButton({ email, password, callbackUrl }: { email: string; password: string; callbackUrl?: string }) {
+  const [state, action, pending] = useActionState<AuthFormState, FormData>(loginAction, {});
+  return (
+    <form action={action} className="mb-6">
+      <input type="hidden" name="email" value={email} />
+      <input type="hidden" name="password" value={password} />
+      {callbackUrl && <input type="hidden" name="callbackUrl" value={callbackUrl} />}
+      <Button type="submit" size="lg" variant="accent" className="w-full" disabled={pending}>
+        {pending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+        Prøv demoen — log ind som Demo Coach
+      </Button>
+      {state.error && <p className="mt-2 text-xs font-medium text-destructive">Demokontoen findes ikke. Kør `pnpm db:seed`.</p>}
+      <div className="mt-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" /> eller log ind med din egen konto <span className="h-px flex-1 bg-border" />
+      </div>
     </form>
   );
 }

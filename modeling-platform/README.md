@@ -88,6 +88,7 @@ Alle variabler er dokumenteret i [`.env.example`](.env.example). De vigtigste:
 | `AUTH_SECRET` | *(dev-default)* | **Påkrævet i produktion**: `openssl rand -base64 32` |
 | `DATA_DIR` | `~/.parresia-modeling` | Lokale data (PGlite + uploads) |
 | `MAX_UPLOAD_MB` | `500` | Max størrelse på lyd/video-upload |
+| `DEMO_LOGIN` | – | `1` viser en "Prøv demoen"-knap på login (demokontoen). Kun til demo og preview. |
 
 ## Sådan virker analysen
 
