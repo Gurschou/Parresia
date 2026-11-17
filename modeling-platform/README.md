@@ -182,6 +182,29 @@ docker compose up --build
 
 `Dockerfile` bygger web og CLI med ffmpeg. `docker-compose.yml` starter PostgreSQL og platformen. Migrationer kører ved opstart, og `/api/health` bruges som healthcheck. Uden Docker: `pnpm build && DATABASE_URL=postgres://… pnpm start`.
 
+## Claude Artifact-udgave
+
+`apps/artifact` er samme platform som én selvstændig side, der kører inde i claude.ai uden server, nøgler eller login:
+
+- **Analyse** via artifact-runtimens `sample` på seerens egen Claude-konto (første gang spørger claude.ai om lov). Samme `SYSTEM_PROMPT`, brugerbesked, schema, oprydning (`coerceToSchema`), Zod-validering og reparationsrunde som web og CLI.
+- **Rapport** med alle kategorier, gem fund i mønsterbiblioteket, download som PDF (React-PDF i browseren), Markdown og JSON via `downloads`.
+- **Historik, eksperter, sammenligning, mønstre og dashboard** med samme `@bm/core`-indsigter. Fire eksempel-analyser er indbygget og markeret som eksempler.
+- **Lagring** privat pr. bruger i artifactets database (`data/users/<id>/…`). Uden for claude.ai falder den tilbage til browserens lager.
+
+```bash
+pnpm artifact:build     # → apps/artifact/dist/parresia-modeling.html (én fil)
+```
+
+Byggeskriptet tjekker først eksempel-analyserne mod schemaet, kompilerer Tailwind og bundler med esbuild. React 18 hentes fra cdnjs. Den færdige fil udgives som artifact med capabilities `sample`, `db`, `user` og `downloads`.
+
+**Forskelle fra web-appen:**
+
+- **System-prompt:** artifact-runtimen lader ikke siden sætte en system-prompt. `SYSTEM_PROMPT` sendes derfor uændret som første blok i input (`<system_prompt>…</system_prompt>`), efterfulgt af den sædvanlige brugerbesked.
+- **Structured outputs:** analysen kører altid i `prompt`-mode, samme tilbagefald som web-appen bruger. JSON-schemaet ligger i prompten, og svaret valideres lokalt.
+- **Model:** modellen vælges med claude.ai's niveauer ("Grundig" = `complex`, "Hurtigere" = `default`).
+- **PDF:** bruger de indbyggede PDF-skrifter (Helvetica/Times).
+- **Input:** kun tekst. Lyd og video kræver web-appen eller CLI'en (ffmpeg og en transskriberings-provider).
+
 ## Ærlige begrænsninger
 
 - **Eye accessing cues** kan ikke observeres i ren tekst. Analysen bruger dem kun, når transskriptet har nonverbale annoteringer (fx "[kigger op til venstre]"). Ellers markeres de som udledt eller ikke tilgængelige.

@@ -22,6 +22,11 @@ modeling-platform/                 pnpm-monorepo (Node ≥ 20, TypeScript strict
 │  └─ test/                        Vitest
 ├─ packages/cli    @bm/cli         `modeling-cli` (commander) — bruger @bm/core direkte
 │  └─ src/program.ts               kommandoer; `run(argv, io)` er testbar uden subprocess
+├─ apps/artifact   @bm/artifact    Claude Artifact-udgave: én HTML-fil (esbuild + Tailwind 4, React 18 fra cdnjs)
+│  ├─ src/lib.ts                   importerer core modul for modul (ingen SDK/Node) — samme prompt, schema, rapport, indsigter
+│  ├─ src/analyze.ts               analyse via runtimens `sample` (prompt-mode + lokal validering + reparationsrunde)
+│  ├─ src/store.ts                 privat lagring i artifact-db (data/users/<id>) → localStorage-fallback
+│  └─ scripts/build.ts             tjek eksempler → Tailwind → esbuild → dist/parresia-modeling.html
 └─ apps/web        @bm/web         Next.js 16 App Router + Tailwind 4 + shadcn-stil UI + Auth.js v5 + Drizzle + Recharts
    ├─ src/app/(auth)/              login/registrering (server actions)
    ├─ src/app/(app)/               oversigt, analyser, rapport, eksperter, sammenlign, mønstre, dashboard
@@ -61,7 +66,7 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 
 ## Ufravigelige regler for LLM-kald
 
-1. **System-prompten er `SYSTEM_PROMPT` — uændret i ALLE kald.** Den må aldrig redigeres, udvides eller sammensættes med andet. `test/system-prompt.test.ts` låser den (streng + SHA-256). Kategori-instruktioner, evidensregler, JSON-krav, kontekst og transskript hører til i **brugerbeskeden** (`buildUserMessage`). Det gælder også fremtidige kald (fx sammenligning eller mønstersyntese).
+1. **System-prompten er `SYSTEM_PROMPT` — uændret i ALLE kald.** Den må aldrig redigeres, udvides eller sammensættes med andet. `test/system-prompt.test.ts` låser den (streng + SHA-256). Kategori-instruktioner, evidensregler, JSON-krav, kontekst og transskript hører til i **brugerbeskeden** (`buildUserMessage`). Det gælder også fremtidige kald (fx sammenligning eller mønstersyntese). **Undtagelse — kun `apps/artifact`:** artifact-runtimens `sample` har ingen system-parameter, så `SYSTEM_PROMPT` sendes uændret som første blok i input (`<system_prompt>…</system_prompt>`) før brugerbeskeden.
 2. **Structured output altid.** `output_config.format` med JSON-schema fra Zod (`ANALYSIS_API_JSON_SCHEMA`). Svaret valideres igen lokalt med Zod. Er schemaet for komplekst til structured outputs, falder analyzeren automatisk tilbage til `prompt`-mode (schema i prompten + lokal validering).
 3. **Schema-regler (API-grænser):** alle felter `required`, ingen `.optional()`/`.nullable()`/unions (brug `""`, `[]` eller en `unknown`-enum-værdi), ingen `minLength`/`maxItems`. `min`/`max` på tal er OK — de fjernes fra API-schemaet af SDK'en og håndhæves lokalt af `coerceToSchema` + Zod. `test/schema.test.ts` auditerer dette.
 4. **Model:** `ANTHROPIC_MODEL` (default `claude-opus-5-5`), adaptive thinking, `effort` (default `high`), streaming, `max_tokens` 64000. Server-side fallback ved refusal (`fallbacks: "default"`, beta `server-side-fallback-2026-07-01`) kan slås fra med `ANTHROPIC_FALLBACKS=off`.
@@ -74,7 +79,7 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 2. Tilføj den til `ANALYSIS_CATEGORIES` i `categories/registry.ts`.
 3. Kør `pnpm test`. Schema, prompt-instruktioner, rapport (MD/PDF/web), "mangler"-mål og metrics følger automatisk med.
 4. Bump `ANALYSIS_SCHEMA_VERSION` hvis gamle analyser ikke længere validerer, og opdatér mock-generatoren (`testing/mock-analysis.ts`).
-5. Bruger kategorien en ny `ReportBlock`-type, så implementér den i `report/markdown.ts`, `report/pdf.tsx` og `apps/web/components/report/report-blocks.tsx`.
+5. Bruger kategorien en ny `ReportBlock`-type, så implementér den i `report/markdown.ts`, `report/pdf-document.tsx`, `apps/web/components/report/report-blocks.tsx` og `apps/artifact/src/report.tsx`.
 
 ## Konventioner
 
@@ -86,7 +91,7 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 - Lokale data (PGlite + uploads) ligger i `DATA_DIR` (default `~/.parresia-modeling`) — ALDRIG inde i projektet: PGlite skriver ved hver query, og Next' dev-watcher genindlæser så siden i en løkke.
 - Next.js 16: `params`/`searchParams`/`cookies()` er async; `middleware` hedder `proxy` (bruges ikke — auth tjekkes i layouts og `withUser`). Læs `node_modules/next/dist/docs/` før du bruger nye Next-API'er.
 - Objekter (ikke komponenter) må ikke importeres fra `"use client"`-moduler ind i server components — de bliver proxies. Delte konstanter hører til i `@bm/core` eller ikke-client-moduler.
-- React-PDF 4.9: undgå arvet `lineHeight` på `Page` og dynamiske `render`-tekster i komponenter (sidetal forsvinder) — se kommentarer i `report/pdf.tsx`.
+- React-PDF 4.9: undgå arvet `lineHeight` på `Page` og dynamiske `render`-tekster i komponenter (sidetal forsvinder) — se kommentarer i `report/pdf-document.tsx`. `pdf-document.tsx` er browser-sikker (bruges af artifactet med indbyggede skrifter); `pdf.tsx` tilføjer Node-delen (skrifter fra disk, `renderPdf`).
 - UI: danske tekster, design-tokens i `apps/web/src/app/globals.css` (lys/mørk), diagramfarver `--series-1..8` i fast rækkefølge (V, A, K, O, G, Ad).
 - Tests: `pnpm test` (Vitest i core, web, cli). E2E: `pnpm e2e` (Playwright, kører i mock-mode).
 - Hemmeligheder kun via env. Commit aldrig `.env`.
@@ -103,6 +108,7 @@ pnpm test                       # core + web-endpoints + CLI (Vitest)
 pnpm e2e                        # next build + Playwright end-to-end (mock)
 pnpm typecheck
 pnpm cli analyze examples/interview-mette.txt --mock   # CLI fra kildekoden
+pnpm artifact:build            # Claude Artifact-udgaven → apps/artifact/dist/parresia-modeling.html
 ```
 
 Til lokal test uden nøgler: `LLM_PROVIDER=mock TRANSCRIPTION_PROVIDER=mock` i `apps/web/.env.local`.

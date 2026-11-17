@@ -12,7 +12,8 @@
     "./testing": "./src/testing/index.ts",
     "./text-formats": "./src/transcription/text-formats.ts",
     "./sample": "./src/testing/sample-transcript.ts",
-    "./demo": "./src/testing/demo-transcripts.ts"
+    "./demo": "./src/testing/demo-transcripts.ts",
+    "./pdf-document": "./src/report/pdf-document.tsx"
   },
   "scripts": {
     "test": "vitest run",

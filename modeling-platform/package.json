@@ -18,7 +18,8 @@
     "db:generate": "pnpm --filter @bm/web db:generate",
     "e2e": "pnpm --filter @bm/web e2e",
     "cli": "tsx packages/cli/src/index.ts",
-    "db:seed": "pnpm --filter @bm/web db:seed"
+    "db:seed": "pnpm --filter @bm/web db:seed",
+    "artifact:build": "pnpm --filter @bm/artifact build"
   },
   "devDependencies": {
     "tsx": "^4.23.15"
