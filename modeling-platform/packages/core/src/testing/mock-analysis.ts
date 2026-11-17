@@ -2,6 +2,7 @@ import type { AnalysisResult } from "../categories/registry";
 import { META_PROGRAM_IDS, type MetaProgramId } from "../categories/meta-programs";
 import { HUMAN_NEEDS, REP_SYSTEMS, type HumanNeedKey, type RepSystem } from "../schema/common";
 import { countVakogPredicates } from "../insights/vakog-lexicon";
+import { HUMAN_NEED_LABEL } from "../schema/labels";
 import type { AnalysisContext } from "../prompt/build-user-message";
 
 /**
@@ -72,11 +73,10 @@ export function generateMockAnalysis(transcript: string, context: AnalysisContex
   const distribution =
     lex.total > 0 ? lex.distribution : { V: 30, A: 15, K: 35, O: 0, G: 0, Ad: 20 };
 
+  const needHits = Object.fromEntries(HUMAN_NEEDS.map((n) => [n, count(lower, NEED_WORDS[n])])) as Record<HumanNeedKey, number>;
+  const maxHits = Math.max(1, ...Object.values(needHits));
   const needScores = Object.fromEntries(
-    HUMAN_NEEDS.map((n, i) => {
-      const hits = count(lower, NEED_WORDS[n]);
-      return [n, Math.min(10, Math.round((2 + hits * 1.3 + ((seed >> i) % 3)) * 10) / 10)];
-    }),
+    HUMAN_NEEDS.map((n, i) => [n, Math.min(10, Math.round((2.5 + (6.5 * needHits[n]) / maxHits + ((seed >> (i * 3)) % 7) / 10) * 10) / 10)]),
   ) as Record<HumanNeedKey, number>;
   const dominant = [...HUMAN_NEEDS].sort((a, b) => needScores[b] - needScores[a]).slice(0, 2);
 
@@ -223,7 +223,7 @@ export function generateMockAnalysis(transcript: string, context: AnalysisContex
         ]),
       ) as AnalysisResult["values_and_6_human_needs"]["human_needs"],
       dominant_needs: dominant,
-      needs_summary: `De dominerende behov ser ud til at være ${dominant.join(" og ")}. (Mock: baseret på ordtælling.)`,
+      needs_summary: `De dominerende behov ser ud til at være ${dominant.map((n) => HUMAN_NEED_LABEL[n].toLowerCase()).join(" og ")}. (Mock: baseret på ordtælling.)`,
     },
     meta_programs: {
       programs: [

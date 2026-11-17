@@ -17,6 +17,7 @@
     "db:migrate": "pnpm --filter @bm/web db:migrate",
     "db:generate": "pnpm --filter @bm/web db:generate",
     "e2e": "pnpm --filter @bm/web e2e",
-    "cli": "pnpm --filter @bm/cli exec tsx src/index.ts"
+    "cli": "pnpm --filter @bm/cli exec tsx src/index.ts",
+    "db:seed": "pnpm --filter @bm/web db:seed"
   }
 }

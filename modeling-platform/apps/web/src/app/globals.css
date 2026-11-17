@@ -1,0 +1,215 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * Designsprog: rolig, redaktionel og præcis. Varm papirhvid + blæk-indigo,
+ * serif-overskrifter (Fraunces) og en ren sans til UI (Plus Jakarta Sans).
+ * Diagramfarver følger en valideret kategorisk palet i fast rækkefølge
+ * (V, A, K, O, G, Ad = slot 1-6) med separate trin til mørk tilstand.
+ */
+:root {
+  --radius: 0.85rem;
+
+  --background: oklch(0.985 0.004 85);
+  --foreground: oklch(0.2 0.02 275);
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+  --popover: oklch(1 0 0);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.43 0.17 278);
+  --primary-foreground: oklch(0.985 0.004 85);
+  --secondary: oklch(0.955 0.012 280);
+  --secondary-foreground: oklch(0.3 0.08 278);
+  --muted: oklch(0.962 0.006 85);
+  --muted-foreground: oklch(0.5 0.015 275);
+  --accent: oklch(0.95 0.025 70);
+  --accent-foreground: oklch(0.38 0.1 55);
+  --destructive: oklch(0.56 0.2 25);
+  --border: oklch(0.912 0.008 85);
+  --input: oklch(0.89 0.01 85);
+  --ring: oklch(0.55 0.17 278);
+
+  --sidebar: oklch(0.972 0.006 85);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: oklch(0.915 0.008 85);
+  --sidebar-accent: oklch(0.94 0.016 280);
+
+  --positive: oklch(0.52 0.13 155);
+  --positive-soft: oklch(0.95 0.04 155);
+  --negative: oklch(0.55 0.17 25);
+  --negative-soft: oklch(0.955 0.03 25);
+  --info: oklch(0.5 0.14 250);
+  --info-soft: oklch(0.955 0.025 250);
+  --warning: oklch(0.6 0.13 70);
+  --warning-soft: oklch(0.96 0.045 85);
+
+  /* Diagram: kategorisk palet (valideret, fast rækkefølge) */
+  --series-1: #2a78d6;
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
+  --series-4: #eda100;
+  --series-5: #e87ba4;
+  --series-6: #008300;
+  --series-7: #6250d6;
+  --series-8: #e34948;
+  --chart-grid: #e1e0d9;
+  --chart-axis: #c3c2b7;
+  --chart-muted: #898781;
+  --chart-surface: #fcfcfb;
+}
+
+.dark {
+  --background: oklch(0.165 0.014 278);
+  --foreground: oklch(0.94 0.008 85);
+  --card: oklch(0.205 0.016 278);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.22 0.017 278);
+  --popover-foreground: var(--foreground);
+  --primary: oklch(0.74 0.13 278);
+  --primary-foreground: oklch(0.18 0.03 278);
+  --secondary: oklch(0.27 0.03 278);
+  --secondary-foreground: oklch(0.9 0.03 278);
+  --muted: oklch(0.24 0.014 278);
+  --muted-foreground: oklch(0.7 0.015 275);
+  --accent: oklch(0.3 0.04 70);
+  --accent-foreground: oklch(0.88 0.08 75);
+  --destructive: oklch(0.65 0.19 25);
+  --border: oklch(0.29 0.016 278);
+  --input: oklch(0.33 0.018 278);
+  --ring: oklch(0.7 0.13 278);
+
+  --sidebar: oklch(0.185 0.015 278);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-border: oklch(0.27 0.016 278);
+  --sidebar-accent: oklch(0.26 0.03 278);
+
+  --positive: oklch(0.75 0.13 155);
+  --positive-soft: oklch(0.28 0.05 155);
+  --negative: oklch(0.72 0.15 25);
+  --negative-soft: oklch(0.29 0.06 25);
+  --info: oklch(0.75 0.11 250);
+  --info-soft: oklch(0.28 0.05 250);
+  --warning: oklch(0.8 0.12 80);
+  --warning-soft: oklch(0.3 0.05 80);
+
+  --series-1: #3987e5;
+  --series-2: #d95926;
+  --series-3: #199e70;
+  --series-4: #c98500;
+  --series-5: #d55181;
+  --series-6: #0ca30c;
+  --series-7: #9085e9;
+  --series-8: #e66767;
+  --chart-grid: #2c2c2a;
+  --chart-axis: #383835;
+  --chart-muted: #898781;
+  --chart-surface: #1a1a19;
+}
+
+@theme inline {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Fraunces Variable", ui-serif, Georgia, serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-positive: var(--positive);
+  --color-positive-soft: var(--positive-soft);
+  --color-negative: var(--negative);
+  --color-negative-soft: var(--negative-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-series-1: var(--series-1);
+  --color-series-2: var(--series-2);
+  --color-series-3: var(--series-3);
+  --color-series-4: var(--series-4);
+  --color-series-5: var(--series-5);
+  --color-series-6: var(--series-6);
+  --color-series-7: var(--series-7);
+  --color-series-8: var(--series-8);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+
+  --animate-shimmer: shimmer 2.2s linear infinite;
+  @keyframes shimmer {
+    from { background-position: 200% 0; }
+    to { background-position: -200% 0; }
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1, h2, h3 {
+    font-family: var(--font-serif);
+    font-optical-sizing: auto;
+    letter-spacing: -0.015em;
+  }
+  ::selection {
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
+  }
+}
+
+@layer utilities {
+  .text-balance { text-wrap: balance; }
+  .text-pretty { text-wrap: pretty; }
+  /* Blød papirtekstur bag hero-sektioner */
+  .bg-aurora {
+    background:
+      radial-gradient(60% 80% at 0% 0%, color-mix(in oklch, var(--primary) 14%, transparent), transparent 70%),
+      radial-gradient(50% 70% at 100% 0%, color-mix(in oklch, var(--series-2) 12%, transparent), transparent 70%),
+      radial-gradient(60% 60% at 50% 120%, color-mix(in oklch, var(--series-3) 10%, transparent), transparent 70%);
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklch, var(--foreground) 5%, transparent) 1px, transparent 1px);
+    background-size: 28px 28px;
+  }
+  .shimmer {
+    background: linear-gradient(90deg, transparent, color-mix(in oklch, var(--primary) 18%, transparent), transparent);
+    background-size: 200% 100%;
+    animation: var(--animate-shimmer);
+  }
+}
