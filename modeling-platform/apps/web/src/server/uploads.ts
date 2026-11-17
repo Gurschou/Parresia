@@ -6,6 +6,7 @@ import { pipeline } from "node:stream/promises";
 import type { ReadableStream as WebReadableStream } from "node:stream/web";
 import { mediaKind } from "@bm/core/media";
 import { HttpError } from "./http";
+import { dataDir, expandHome } from "./data-dir";
 
 /**
  * Upload af lyd/video: filen streames direkte til disk (ingen buffering i
@@ -13,7 +14,7 @@ import { HttpError } from "./http";
  * Gemmes som `<UPLOAD_DIR>/<userId>/<uploadId><ext>` + en sidecar-JSON.
  */
 
-export const uploadRoot = () => path.resolve(process.env.UPLOAD_DIR ?? path.join(process.cwd(), "data", "uploads"));
+export const uploadRoot = () => expandHome(process.env.UPLOAD_DIR || path.join(dataDir(), "uploads"));
 export const maxUploadBytes = () => (Number(process.env.MAX_UPLOAD_MB ?? 500) || 500) * 1024 * 1024;
 
 interface UploadMeta {

@@ -5,5 +5,5 @@ const started = Date.now();
 await getDb();
 await closeDb();
 const url = process.env.DATABASE_URL ?? "";
-const target = /^postgres/.test(url) ? "PostgreSQL" : url.startsWith("memory://") ? "PGlite (hukommelse)" : `PGlite (${process.env.PGLITE_DIR ?? "./data/pglite"})`;
+const target = /^postgres/.test(url) ? "PostgreSQL" : url.startsWith("memory://") ? "PGlite (hukommelse)" : `PGlite (${process.env.PGLITE_DIR || "~/.parresia-modeling/pglite"})`;
 console.log(`✓ Database migreret (${Date.now() - started} ms) — ${target}`);

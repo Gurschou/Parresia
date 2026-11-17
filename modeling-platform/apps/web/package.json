@@ -11,8 +11,9 @@
     "test": "vitest run",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate-cli.ts",
-    "e2e": "playwright test --trace off",
-    "db:seed": "tsx src/db/seed.ts"
+    "e2e": "next build && playwright test --trace off",
+    "db:seed": "tsx src/db/seed.ts",
+    "e2e:run": "playwright test --trace off"
   },
   "dependencies": {
     "@bm/core": "workspace:*",

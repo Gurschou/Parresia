@@ -21,7 +21,16 @@ modeling-platform/                 pnpm-monorepo (Node ≥ 20, TypeScript strict
 │  ├─ src/media/                   ffmpeg: probe, udtræk/normalisér lyd, opdeling  (Node-only)
 │  └─ test/                        Vitest
 ├─ packages/cli    @bm/cli         `modeling-cli` (commander) — bruger @bm/core direkte
-└─ apps/web        @bm/web         Next.js App Router + Tailwind + shadcn/ui + Auth.js + Drizzle + Recharts
+│  └─ src/program.ts               kommandoer; `run(argv, io)` er testbar uden subprocess
+└─ apps/web        @bm/web         Next.js 16 App Router + Tailwind 4 + shadcn-stil UI + Auth.js v5 + Drizzle + Recharts
+   ├─ src/app/(auth)/              login/registrering (server actions)
+   ├─ src/app/(app)/               oversigt, analyser, rapport, eksperter, sammenlign, mønstre, dashboard
+   ├─ src/app/api/                 REST-endpoints (alle via `withUser()` → 401/JSON-fejl)
+   ├─ src/server/                  servicelag: analyses, jobs (baggrundskø), uploads, experts, patterns, quota
+   ├─ src/db/                      Drizzle-schema, PGlite/Postgres-forbindelse, migrate/seed
+   ├─ src/components/report/       rapportblokke → React (samme blokke som MD/PDF)
+   ├─ test/                        endpoint-tests mod rigtige route-handlere (in-memory PGlite)
+   └─ e2e/                         Playwright mod produktionsbuildet (mock-mode)
 ```
 
 Web og CLI kalder **præcis samme** `analyzeTranscript()` → identisk JSON-output.
@@ -74,6 +83,11 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 - Enum-koder er engelske; danske labels ligger i `schema/labels.ts` og kategori-filerne. Vis aldrig rå enum-koder i UI.
 - Fejl: kast `AnalysisError`, og vis `userMessage` i UI/CLI. Rå SDK-fejl må aldrig nå brugeren.
 - Database: Drizzle (`apps/web/src/db/schema.ts`). Dev = PGlite (Postgres i en lokal mappe), prod = PostgreSQL via `DATABASE_URL`. Ændr schema → `pnpm db:generate` → commit migrationen.
+- Lokale data (PGlite + uploads) ligger i `DATA_DIR` (default `~/.parresia-modeling`) — ALDRIG inde i projektet: PGlite skriver ved hver query, og Next' dev-watcher genindlæser så siden i en løkke.
+- Next.js 16: `params`/`searchParams`/`cookies()` er async; `middleware` hedder `proxy` (bruges ikke — auth tjekkes i layouts og `withUser`). Læs `node_modules/next/dist/docs/` før du bruger nye Next-API'er.
+- Objekter (ikke komponenter) må ikke importeres fra `"use client"`-moduler ind i server components — de bliver proxies. Delte konstanter hører til i `@bm/core` eller ikke-client-moduler.
+- React-PDF 4.9: undgå arvet `lineHeight` på `Page` og dynamiske `render`-tekster i komponenter (sidetal forsvinder) — se kommentarer i `report/pdf.tsx`.
+- UI: danske tekster, design-tokens i `apps/web/src/app/globals.css` (lys/mørk), diagramfarver `--series-1..8` i fast rækkefølge (V, A, K, O, G, Ad).
 - Tests: `pnpm test` (Vitest i core, web, cli). E2E: `pnpm e2e` (Playwright, kører i mock-mode).
 - Hemmeligheder kun via env. Commit aldrig `.env`.
 
@@ -83,8 +97,12 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 pnpm install
 cp .env.example .env            # sæt ANTHROPIC_API_KEY (eller LLM_PROVIDER=mock)
 pnpm db:migrate                 # opret/migrér databasen
+pnpm db:seed                    # demokonto demo@parresia.dk / demo1234 (mock-analyser)
 pnpm dev                        # web på http://localhost:3000
-pnpm test                       # alle unit/integrationstests
-pnpm e2e                        # Playwright end-to-end (mock)
-pnpm cli analyze transcript.txt # CLI fra kildekoden
+pnpm test                       # core + web-endpoints + CLI (Vitest)
+pnpm e2e                        # next build + Playwright end-to-end (mock)
+pnpm typecheck
+pnpm cli analyze examples/interview-mette.txt --mock   # CLI fra kildekoden
 ```
+
+Til lokal test uden nøgler: `LLM_PROVIDER=mock TRANSCRIPTION_PROVIDER=mock` i `apps/web/.env.local`.

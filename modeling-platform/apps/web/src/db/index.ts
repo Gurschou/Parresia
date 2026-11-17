@@ -2,11 +2,12 @@ import path from "node:path";
 import { mkdirSync } from "node:fs";
 import type { PgliteDatabase } from "drizzle-orm/pglite";
 import * as schema from "./schema";
+import { dataDir as rootDataDir, expandHome } from "../server/data-dir";
 
 /**
  * Database-adgang.
  *  - DATABASE_URL=postgres://…  → PostgreSQL via postgres.js (produktion)
- *  - DATABASE_URL tom            → PGlite i ./data/pglite (dev, ingen installation)
+ *  - DATABASE_URL tom            → PGlite i ~/.parresia-modeling/pglite (dev, ingen installation)
  *  - DATABASE_URL=memory://      → PGlite i hukommelsen (tests)
  * Samme Drizzle-schema og samme migrationer i alle tilfælde.
  */
@@ -23,7 +24,7 @@ async function createState(): Promise<DbState> {
     const { default: postgres } = await import("postgres");
     const { drizzle } = await import("drizzle-orm/postgres-js");
     const { migrate } = await import("drizzle-orm/postgres-js/migrator");
-    const client = postgres(url, { max: Number(process.env.DATABASE_POOL_SIZE ?? 10) });
+    const client = postgres(url, { max: Number(process.env.DATABASE_POOL_SIZE ?? 10), onnotice: () => {} });
     const db = drizzle(client, { schema }) as unknown as Db;
     return {
       db,
@@ -38,7 +39,7 @@ async function createState(): Promise<DbState> {
   if (url.startsWith("memory://")) {
     dataDir = undefined;
   } else {
-    dataDir = url.startsWith("file:") ? url.slice(5) : (process.env.PGLITE_DIR ?? path.join(process.cwd(), "data", "pglite"));
+    dataDir = url.startsWith("file:") ? url.slice(5) : expandHome(process.env.PGLITE_DIR || path.join(rootDataDir(), "pglite"));
     mkdirSync(dataDir, { recursive: true });
   }
   const client = new PGlite(dataDir);

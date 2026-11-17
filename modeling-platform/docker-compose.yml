@@ -1,0 +1,35 @@
+# Produktionslignende opsætning: PostgreSQL + platformen.
+#   cp .env.example .env   # sæt ANTHROPIC_API_KEY, AUTH_SECRET m.m.
+#   docker compose up --build
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: modeling
+      POSTGRES_PASSWORD: modeling
+      POSTGRES_DB: modeling
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U modeling"]
+      interval: 5s
+      retries: 10
+
+  web:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://modeling:modeling@db:5432/modeling
+      DATA_DIR: /data
+      AUTH_URL: ${AUTH_URL:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - uploads:/data
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  uploads:
