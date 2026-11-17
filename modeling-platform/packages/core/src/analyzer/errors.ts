@@ -60,7 +60,7 @@ export class AnalysisError extends Error {
     code: AnalysisErrorCode,
     opts: { message?: string; status?: number; retryAfterMs?: number; details?: string; cause?: unknown } = {},
   ) {
-    super(opts.message ?? USER_MESSAGES[code], { cause: opts.cause });
+    super(opts.message ?? (opts.details ? `${USER_MESSAGES[code]} ${opts.details}` : USER_MESSAGES[code]), { cause: opts.cause });
     this.name = "AnalysisError";
     this.code = code;
     this.userMessage = USER_MESSAGES[code];

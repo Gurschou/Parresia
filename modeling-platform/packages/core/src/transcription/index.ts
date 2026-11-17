@@ -66,8 +66,10 @@ export async function transcribeMedia(file: string, opts: TranscribeMediaOptions
     const size = (await stat(audio)).size;
     if (provider.maxBytes && size > provider.maxBytes) {
       progress({ stage: "splitting", message: "Deler lyden op i mindre bidder" });
-      // 48 kbit/s ≈ 6 KB/s → vælg segmentlængde med god margin til grænsen.
-      const segmentSec = Math.max(60, Math.floor((provider.maxBytes * 0.8) / 6000));
+      // Segmentlængde ud fra den faktiske bitrate, med margin til grænsen.
+      const duration = probe.durationSec || (await probeMedia(audio, opts.signal)).durationSec || 1;
+      const bytesPerSec = size / duration;
+      const segmentSec = Math.max(10, Math.floor((provider.maxBytes * 0.85) / bytesPerSec));
       parts = await splitAudio(audio, path.join(work, "chunks"), segmentSec, opts.signal);
     }
 

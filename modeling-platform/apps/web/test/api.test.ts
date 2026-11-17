@@ -1,0 +1,269 @@
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { AnalysisResultSchema, SAMPLE_TRANSCRIPT } from "@bm/core";
+
+/**
+ * Endpoint-tests: kalder de rigtige route-handlere med in-memory PGlite,
+ * mock-LLM og mock-transskribering. Kun sessionen (Auth.js) er mocket.
+ */
+const session = vi.hoisted(() => ({ current: null as null | { user: { id: string; name: string; email: string } } }));
+vi.mock("@/auth", () => ({ auth: async () => session.current, signIn: vi.fn(), signOut: vi.fn(), handlers: {} }));
+
+import { closeDb, getDb, schema } from "@/db";
+import * as analysesRoute from "@/app/api/analyses/route";
+import * as analysisRoute from "@/app/api/analyses/[id]/route";
+import * as statusRoute from "@/app/api/analyses/[id]/status/route";
+import * as reportRoute from "@/app/api/analyses/[id]/report/route";
+import * as retryRoute from "@/app/api/analyses/[id]/retry/route";
+import * as registerRoute from "@/app/api/register/route";
+import * as expertsRoute from "@/app/api/experts/route";
+import * as patternsRoute from "@/app/api/patterns/route";
+import * as suggestionsRoute from "@/app/api/patterns/suggestions/route";
+import * as compareRoute from "@/app/api/compare/route";
+import * as dashboardRoute from "@/app/api/dashboard/route";
+import * as uploadsRoute from "@/app/api/uploads/route";
+import * as healthRoute from "@/app/api/health/route";
+
+const BASE = "http://test.local";
+const json = (path: string, body: unknown, method = "POST") =>
+  new Request(BASE + path, { method, headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+const get = (path: string) => new Request(BASE + path);
+const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+
+async function createUser(email: string) {
+  const res = await registerRoute.POST(json("/api/register", { name: "Test Bruger", email, password: "hemmelig123" }));
+  expect(res.status).toBe(201);
+  return (await res.json()) as { id: string; name: string; email: string };
+}
+const loginAs = (u: { id: string; name: string; email: string } | null) => {
+  session.current = u ? { user: u } : null;
+};
+
+async function waitForStatus(id: string, statuses: string[], timeoutMs = 30_000) {
+  const t0 = Date.now();
+  for (;;) {
+    const res = await statusRoute.GET(get(`/api/analyses/${id}/status`), ctx(id));
+    const body = await res.json();
+    if (statuses.includes(body.status)) return body;
+    if (Date.now() - t0 > timeoutMs) throw new Error(`timeout; sidste status ${body.status}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
+
+let alice: { id: string; name: string; email: string };
+let bob: { id: string; name: string; email: string };
+
+beforeAll(async () => {
+  await getDb();
+  alice = await createUser("alice@example.com");
+  bob = await createUser("bob@example.com");
+});
+afterAll(async () => {
+  await new Promise((r) => setTimeout(r, 200));
+  await closeDb();
+});
+
+describe("auth & registrering", () => {
+  it("afviser dubletter og ugyldigt input", async () => {
+    expect((await registerRoute.POST(json("/api/register", { name: "X", email: "alice@example.com", password: "hemmelig123" }))).status).toBe(422);
+    const dup = await registerRoute.POST(json("/api/register", { name: "Alice", email: "ALICE@example.com", password: "hemmelig123" }));
+    expect(dup.status).toBe(409);
+    const bad = await registerRoute.POST(json("/api/register", { name: "Alice", email: "ikke-en-mail", password: "kort" }));
+    expect(bad.status).toBe(422);
+    expect((await bad.json()).error.code).toBe("validation_error");
+  });
+
+  it("beskyttede endpoints kræver login (401)", async () => {
+    loginAs(null);
+    const res = await analysesRoute.GET(get("/api/analyses"), undefined);
+    expect(res.status).toBe(401);
+    expect((await res.json()).error.code).toBe("unauthorized");
+  });
+
+  it("health svarer ok", async () => {
+    const res = await healthRoute.GET();
+    expect(res.status).toBe(200);
+    expect((await res.json()).llm.provider).toBe("mock");
+  });
+});
+
+describe("analyse-flow", () => {
+  let analysisId = "";
+  let expertId = "";
+
+  it("opretter ekspert og validerer projekt-ejerskab", async () => {
+    loginAs(alice);
+    const res = await expertsRoute.POST(json("/api/experts", { name: "Mette Holm", role: "Salgsdirektør" }), undefined);
+    expect(res.status).toBe(201);
+    expertId = (await res.json()).id;
+    const bad = await expertsRoute.POST(json("/api/experts", { name: "X", projectId: "findes-ikke" }), undefined);
+    expect(bad.status).toBe(422);
+  });
+
+  it("validerer input (tomt transskript → 422)", async () => {
+    loginAs(alice);
+    const res = await analysesRoute.POST(json("/api/analyses", { transcript: "   " }), undefined);
+    expect(res.status).toBe(422);
+  });
+
+  it("starter en analyse (202), kører den i baggrunden og gemmer et schema-gyldigt resultat", async () => {
+    loginAs(alice);
+    const res = await analysesRoute.POST(json("/api/analyses", { transcript: SAMPLE_TRANSCRIPT, expertId, context: { goal: "Lukke store aftaler" } }), undefined);
+    expect(res.status).toBe(202);
+    const body = await res.json();
+    analysisId = body.id;
+    expect(res.headers.get("location")).toBe(`/api/analyses/${analysisId}`);
+
+    const status = await waitForStatus(analysisId, ["completed", "failed"]);
+    expect(status.status).toBe("completed");
+    expect(status.progress).toBe(100);
+
+    const full = await (await analysisRoute.GET(get(`/api/analyses/${analysisId}`), ctx(analysisId))).json();
+    expect(AnalysisResultSchema.safeParse(full.result).success).toBe(true);
+    expect(full.result.summary.subject).toBe("Mette Holm");
+    expect(full.meta.provider).toBe("mock");
+    expect(full.uploadPath).toBeUndefined();
+  });
+
+  it("andre brugere kan ikke se analysen (404)", async () => {
+    loginAs(bob);
+    expect((await analysisRoute.GET(get(`/api/analyses/${analysisId}`), ctx(analysisId))).status).toBe(404);
+    expect((await reportRoute.GET(get(`/api/analyses/${analysisId}/report`), ctx(analysisId))).status).toBe(404);
+  });
+
+  it("genererer rapporter som Markdown, JSON og PDF", async () => {
+    loginAs(alice);
+    const md = await reportRoute.GET(get(`/api/analyses/${analysisId}/report?format=md`), ctx(analysisId));
+    expect(md.headers.get("content-type")).toContain("text/markdown");
+    expect(md.headers.get("content-disposition")).toMatch(/attachment; filename="adfaerdsmodel-mette-holm-\d{4}-\d{2}-\d{2}\.md"/);
+    expect(await md.text()).toContain("## Kognitive strategier");
+
+    const js = await reportRoute.GET(get(`/api/analyses/${analysisId}/report?format=json`), ctx(analysisId));
+    const parsed = await js.json();
+    expect(parsed.schema_version).toBe(1);
+    expect(AnalysisResultSchema.safeParse(parsed.result).success).toBe(true);
+
+    const pdf = await reportRoute.GET(get(`/api/analyses/${analysisId}/report?format=pdf`), ctx(analysisId));
+    expect(pdf.headers.get("content-type")).toBe("application/pdf");
+    expect(Buffer.from(await pdf.arrayBuffer()).subarray(0, 5).toString()).toBe("%PDF-");
+
+    expect((await reportRoute.GET(get(`/api/analyses/${analysisId}/report?format=docx`), ctx(analysisId))).status).toBe(400);
+  });
+
+  it("lister, omdøber og filtrerer analyser", async () => {
+    loginAs(alice);
+    const patch = await analysisRoute.PATCH(json(`/api/analyses/${analysisId}`, { title: "Salgsinterview", sessionDate: "2026-11-01" }, "PATCH"), ctx(analysisId));
+    expect(patch.status).toBe(200);
+    const list = await (await analysesRoute.GET(get(`/api/analyses?expertId=${expertId}`), undefined)).json();
+    expect(list.items.map((i: { title: string }) => i.title)).toContain("Salgsinterview");
+    const none = await (await analysesRoute.GET(get(`/api/analyses?status=failed`), undefined)).json();
+    expect(none.items).toHaveLength(0);
+  });
+
+  it("lyd-upload → mock-transskribering → analyse", async () => {
+    loginAs(alice);
+    const bad = await uploadsRoute.POST(new Request(BASE + "/api/uploads", { method: "POST", headers: { "x-file-name": "noter.exe" }, body: "x" }), undefined);
+    expect(bad.status).toBe(415);
+    const up = await uploadsRoute.POST(
+      new Request(BASE + "/api/uploads", { method: "POST", headers: { "x-file-name": encodeURIComponent("møde 1.mp3") }, body: new Uint8Array(2048).fill(7) }),
+      undefined,
+    );
+    expect(up.status).toBe(201);
+    const { uploadId, kind } = await up.json();
+    expect(kind).toBe("audio");
+
+    const res = await analysesRoute.POST(json("/api/analyses", { uploadId, expertId }), undefined);
+    expect(res.status).toBe(202);
+    const { id } = await res.json();
+    const s = await waitForStatus(id, ["completed", "failed"]);
+    expect(s.status).toBe("completed");
+    const full = await (await analysisRoute.GET(get(`/api/analyses/${id}`), ctx(id))).json();
+    expect(full.sourceType).toBe("audio");
+    expect(full.sourceName).toBe("møde 1.mp3");
+    expect(full.transcript.length).toBeGreaterThan(500);
+    expect(full.mediaInfo.provider).toBe("mock");
+
+    // Samme upload kan ikke bruges to gange
+    const again = await analysesRoute.POST(json("/api/analyses", { uploadId }), undefined);
+    expect(again.status).toBe(404);
+  });
+
+  it("fejl gemmes med kode og dansk besked, og kan køres igen", async () => {
+    loginAs(alice);
+    vi.stubEnv("LLM_PROVIDER", "anthropic");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_AUTH_TOKEN", "");
+    const res = await analysesRoute.POST(json("/api/analyses", { transcript: SAMPLE_TRANSCRIPT }), undefined);
+    const { id } = await res.json();
+    const s = await waitForStatus(id, ["failed", "completed"]);
+    expect(s.status).toBe("failed");
+    expect(s.errorCode).toBe("missing_api_key");
+    expect(s.errorMessage).toContain("ANTHROPIC_API_KEY");
+    vi.unstubAllEnvs();
+
+    const retry = await retryRoute.POST(json(`/api/analyses/${id}/retry`, {}), ctx(id));
+    expect(retry.status).toBe(202);
+    expect((await waitForStatus(id, ["completed", "failed"])).status).toBe("completed");
+    // En færdig analyse kan ikke køres igen
+    expect((await retryRoute.POST(json(`/api/analyses/${id}/retry`, {}), ctx(id))).status).toBe(409);
+  });
+
+  it("håndhæver kvoten pr. bruger (429)", async () => {
+    loginAs(bob);
+    vi.stubEnv("USER_ANALYSES_PER_HOUR", "1");
+    expect((await analysesRoute.POST(json("/api/analyses", { transcript: SAMPLE_TRANSCRIPT }), undefined)).status).toBe(202);
+    const second = await analysesRoute.POST(json("/api/analyses", { transcript: SAMPLE_TRANSCRIPT }), undefined);
+    expect(second.status).toBe(429);
+    expect((await second.json()).error.code).toBe("quota_exceeded");
+    vi.unstubAllEnvs();
+  });
+
+  it("sammenligning, dashboard og mønsterbibliotek", async () => {
+    loginAs(alice);
+    const ids = (await (await analysesRoute.GET(get("/api/analyses?status=completed"), undefined)).json()).items.map((i: { id: string }) => i.id);
+    expect(ids.length).toBeGreaterThanOrEqual(2);
+
+    expect((await compareRoute.GET(get(`/api/compare?ids=${ids[0]}`), undefined)).status).toBe(422);
+    const cmp = await (await compareRoute.GET(get(`/api/compare?ids=${ids.slice(0, 2).join(",")}`), undefined)).json();
+    expect(cmp.columns).toHaveLength(2);
+    expect(cmp.needs).toHaveLength(6);
+
+    const dash = await (await dashboardRoute.GET(get("/api/dashboard"), undefined)).json();
+    expect(dash.totals.analyses).toBeGreaterThanOrEqual(2);
+
+    const created = await patternsRoute.POST(
+      json("/api/patterns", {
+        title: "Mental generalprøve",
+        category: "cognitive_strategies",
+        tags: ["forberedelse"],
+        examples: [{ analysisId: ids[0], excerpt: { label: "Ser mødet for sig", quotes: ["Jeg ser rummet"] } }],
+      }),
+      undefined,
+    );
+    expect(created.status).toBe(201);
+    const badCat = await patternsRoute.POST(json("/api/patterns", { title: "X y", category: "astrologi" }), undefined);
+    expect(badCat.status).toBe(422);
+    const list = await (await patternsRoute.GET(get("/api/patterns"), undefined)).json();
+    expect(list.items[0].examples).toHaveLength(1);
+
+    const sugg = await (await suggestionsRoute.GET(get("/api/patterns/suggestions?minExperts=1"), undefined)).json();
+    expect(Array.isArray(sugg.items)).toBe(true);
+
+    // Bob kan ikke tilføje Alices analyse til sit bibliotek
+    loginAs(bob);
+    const steal = await patternsRoute.POST(
+      json("/api/patterns", { title: "Tyveri", category: "vakog", examples: [{ analysisId: ids[0], excerpt: { label: "x" } }] }),
+      undefined,
+    );
+    expect(steal.status).toBe(422);
+  });
+
+  it("sletning fjerner analysen", async () => {
+    loginAs(alice);
+    const del = await analysisRoute.DELETE(get(`/api/analyses/${analysisId}`), ctx(analysisId));
+    expect(del.status).toBe(204);
+    expect((await analysisRoute.GET(get(`/api/analyses/${analysisId}`), ctx(analysisId))).status).toBe(404);
+    const db = await getDb();
+    const examples = await db.select().from(schema.patternExamples);
+    expect(examples.every((e) => e.analysisId !== analysisId)).toBe(true);
+  });
+});
