@@ -47,20 +47,36 @@ const NAV = [
   { key: "dashboard", label: "Dashboard", icon: BarChart3, match: ["dashboard"] },
 ] as const;
 
+/** Mærket: en iris med de seks eye accessing-positioner (Vc/Vr, Ac/Ar, K/Ad). */
+function Mark({ className }: { className?: string }) {
+  const pts: [number, number][] = [
+    [6, 7],
+    [18, 7],
+    [3.6, 12],
+    [20.4, 12],
+    [6, 17],
+    [18, 17],
+  ];
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" aria-hidden>
+      <circle cx="12" cy="12" r="4.6" stroke="currentColor" strokeWidth="1.6" />
+      <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+      {pts.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r="1.25" fill={`var(--series-${[1, 1, 2, 2, 3, 6][i]})`} />
+      ))}
+    </svg>
+  );
+}
+
 function Logo() {
   return (
-    <a href="#oversigt" className="flex items-center gap-2.5">
-      <span className="flex size-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-        <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
-          <circle cx="6" cy="7" r="2.2" />
-          <circle cx="18" cy="7" r="2.2" />
-          <circle cx="12" cy="17.5" r="2.2" />
-          <path d="M7.8 8.4 10.6 15.6M16.2 8.4 13.4 15.6M8.2 7h7.6" />
-        </svg>
+    <a href="#oversigt" className="flex items-center gap-3 text-sidebar-foreground">
+      <span className="flex size-10 items-center justify-center rounded-xl bg-sidebar-accent ring-1 ring-sidebar-border">
+        <Mark className="size-7" />
       </span>
-      <span className="leading-tight">
-        <span className="block font-serif text-[17px] font-semibold">Parresia</span>
-        <span className="block text-[11px] font-semibold tracking-[0.14em] text-muted-foreground uppercase">Modeling Studio</span>
+      <span className="leading-none">
+        <span className="block text-[17px] font-extrabold tracking-[-0.02em]">Parresia</span>
+        <span className="mt-1 block text-[10.5px] font-semibold tracking-[0.2em] text-sidebar-muted uppercase">Modeling Studio</span>
       </span>
     </a>
   );
@@ -105,7 +121,7 @@ function StorageNote({ backend, stale }: { backend: string; stale: boolean }) {
           ? [HardDrive, "Gemmes kun, mens siden er åben"]
           : [Loader2, "Forbinder til lageret…"];
   return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+    <div className="flex items-center gap-2 text-xs text-sidebar-muted">
       <Icon className={cn("size-3.5 shrink-0", backend === "loading" && "animate-spin")} /> <span className="min-w-0">{text}</span>
     </div>
   );
@@ -225,12 +241,12 @@ function App() {
             href={`#${n.key}`}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition",
-              active ? "bg-secondary text-secondary-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              "flex items-center gap-3 rounded-lg px-3 py-2 text-[14px] font-medium transition",
+              active ? "bg-sidebar-accent text-sidebar-foreground" : "text-sidebar-muted hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
             )}
           >
-            <n.icon className="size-[18px]" /> {n.label}
-            {n.key === "analyser" && store.own.length > 0 && <span className="tabular ml-auto text-xs font-medium text-muted-foreground">{store.own.length}</span>}
+            <n.icon className={cn("size-[17px]", active && "text-primary")} style={active ? { color: "color-mix(in oklch, var(--primary) 55%, var(--sidebar-foreground))" } : undefined} /> {n.label}
+            {n.key === "analyser" && store.own.length > 0 && <span className="tabular ml-auto font-mono text-[11px] text-sidebar-muted">{store.own.length}</span>}
           </a>
         );
       })}
@@ -240,33 +256,38 @@ function App() {
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[264px_minmax(0,1fr)]">
       {/* Sidebar (desktop) */}
-      <aside className="sticky top-0 hidden h-screen flex-col gap-8 border-r bg-card/60 px-5 py-6 lg:flex">
-        <Logo />
-        {navList}
-        <div className="mt-auto flex flex-col gap-3 border-t pt-4">
+      <aside className="sticky top-0 hidden h-screen flex-col gap-9 bg-sidebar px-4 py-6 lg:flex">
+        <div className="px-1">
+          <Logo />
+        </div>
+        <div className="flex flex-col gap-2">
+          <div className="eyebrow px-3 text-sidebar-muted/70">Arbejdsrum</div>
+          {navList}
+        </div>
+        <div className="mt-auto flex flex-col gap-3 border-t border-sidebar-border px-2 pt-4">
           <StorageNote backend={store.backend} stale={store.stale} />
-          <button onClick={toggleTheme} className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-foreground">
+          <button onClick={toggleTheme} className="flex cursor-pointer items-center gap-2 text-xs font-semibold text-sidebar-muted hover:text-sidebar-foreground">
             {isDark ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />} {isDark ? "Lyst tema" : "Mørkt tema"}
           </button>
         </div>
       </aside>
 
       {/* Topbar (mobil/tablet) */}
-      <header className="gutter sticky top-0 z-40 flex h-16 items-center justify-between border-b bg-background/85 backdrop-blur lg:hidden">
+      <header className="gutter sticky z-40 flex h-16 items-center justify-between bg-sidebar lg:hidden" style={{ top: "env(safe-area-inset-top, 0px)" }}>
         <Logo />
-        <div className="flex items-center gap-1">
-          <button onClick={toggleTheme} aria-label={isDark ? "Lyst tema" : "Mørkt tema"} className="flex size-10 cursor-pointer items-center justify-center rounded-lg hover:bg-muted">
+        <div className="flex items-center gap-1 text-sidebar-foreground">
+          <button onClick={toggleTheme} aria-label={isDark ? "Lyst tema" : "Mørkt tema"} className="flex size-10 cursor-pointer items-center justify-center rounded-lg hover:bg-sidebar-accent">
             {isDark ? <Sun className="size-5" /> : <Moon className="size-5" />}
           </button>
-          <button onClick={() => setMenuOpen((o) => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex size-10 cursor-pointer items-center justify-center rounded-lg hover:bg-muted">
+          <button onClick={() => setMenuOpen((o) => !o)} aria-label="Menu" aria-expanded={menuOpen} className="flex size-10 cursor-pointer items-center justify-center rounded-lg hover:bg-sidebar-accent">
             {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
           </button>
         </div>
       </header>
       {menuOpen && (
-        <div className="gutter animate-in fixed inset-x-0 top-16 z-30 border-b bg-background pt-3 pb-5 shadow-lg lg:hidden">
+        <div className="gutter animate-in fixed inset-x-0 z-30 bg-sidebar pt-2 pb-5 shadow-lg lg:hidden" style={{ top: "calc(64px + env(safe-area-inset-top, 0px))" }}>
           {navList}
-          <div className="mt-4 border-t pt-3">
+          <div className="mt-4 border-t border-sidebar-border pt-3">
             <StorageNote backend={store.backend} stale={store.stale} />
           </div>
         </div>

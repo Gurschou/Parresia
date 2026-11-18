@@ -115,7 +115,7 @@ export function Modal({ open, onClose, title, description, children }: { open: b
         <button onClick={onClose} className="absolute top-4 right-4 cursor-pointer rounded-md p-1 text-muted-foreground hover:bg-muted" aria-label="Luk">
           <X className="size-4" />
         </button>
-        <h2 className="pr-8 text-xl font-semibold">{title}</h2>
+        <h2 className="pr-8 text-xl">{title}</h2>
         {description && <p className="mt-1.5 text-sm text-muted-foreground">{description}</p>}
         <div className="mt-5">{children}</div>
       </div>
@@ -127,8 +127,8 @@ export function PageHeader({ eyebrow, title, description, actions }: { eyebrow?:
   return (
     <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
       <div className="min-w-0">
-        {eyebrow && <div className="mb-2 text-xs font-semibold tracking-[0.18em] text-primary uppercase">{eyebrow}</div>}
-        <h1 className="text-3xl leading-tight font-semibold sm:text-4xl">{title}</h1>
+        {eyebrow && <div className="eyebrow mb-3 text-primary">{eyebrow}</div>}
+        <h1 className="text-3xl leading-[1.05] sm:text-[2.6rem]">{title}</h1>
         {description && <p className="text-pretty mt-2 max-w-2xl text-muted-foreground">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -142,7 +142,7 @@ export function EmptyState({ icon: Icon, title, description, action }: { icon: R
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-secondary">
         <Icon className="size-6 text-primary" />
       </div>
-      <h3 className="text-xl font-semibold">{title}</h3>
+      <h3 className="text-xl">{title}</h3>
       {description && <p className="text-pretty mt-2 max-w-md text-sm text-muted-foreground">{description}</p>}
       {action && <div className="mt-6">{action}</div>}
     </div>

@@ -73,66 +73,160 @@ function ExampleBadge() {
 
 /* ─────────────────────────────── Oversigt ─────────────────────────────── */
 
+type Strategy = StoredAnalysis["result"]["cognitive_strategies"]["strategies"][number];
+
+/** Strategi-trin i NLP-notation: system + orientering (e/i) + tid (r/c). */
+export function StepCode({ step }: { step: Strategy["steps"][number] }) {
+  const o = step.orientation === "internal" ? "i" : "e";
+  const t = step.temporal === "remembered" ? "r" : step.temporal === "constructed" ? "c" : "";
+  return (
+    <span className="font-mono text-[13px] leading-none font-semibold whitespace-nowrap">
+      {step.system}
+      <span className="relative top-[0.3em] ml-px text-[10px] font-medium opacity-75">{o}</span>
+      {t && <span className="relative -top-[0.45em] text-[10px] font-medium opacity-75">{t}</span>}
+    </span>
+  );
+}
+
+const REP_SLOT: Record<string, number> = { V: 1, A: 2, K: 3, O: 4, G: 5, Ad: 6 };
+
+export function StepChain({ steps }: { steps: Strategy["steps"] }) {
+  return (
+    <ol className="flex flex-wrap items-center gap-x-1.5 gap-y-2" aria-label="Strategiens trin">
+      {steps.map((st, i) => (
+        <li key={i} className="flex items-center gap-1.5">
+          <span
+            className="tip inline-flex h-8 items-center rounded-md border bg-background px-2.5"
+            tabIndex={0}
+            data-tip={st.description.slice(0, 60)}
+            style={{ boxShadow: `inset 0 -3px 0 var(--series-${REP_SLOT[st.system] ?? 1})` }}
+          >
+            <StepCode step={st} />
+          </span>
+          <span className="text-muted-foreground" aria-hidden>
+            →
+          </span>
+        </li>
+      ))}
+      <li className="inline-flex h-8 items-center rounded-md bg-foreground px-2.5 font-mono text-[12px] font-semibold text-background">Exit</li>
+    </ol>
+  );
+}
+
+function trimQuote(q: string, max = 190): string {
+  const t = q.trim();
+  if (t.length <= max) return t;
+  return t.slice(0, t.lastIndexOf(" ", max)) + " …";
+}
+
+/** Et rigtigt fund fra den nyeste analyse: ordret citat → udledt strategi. */
+function Specimen({ analyses }: { analyses: StoredAnalysis[] }) {
+  let pick: { a: StoredAnalysis; s: Strategy; quote: string } | null = null;
+  for (const a of analyses) {
+    for (const st of a.result.cognitive_strategies.strategies) {
+      const quote = st.quotes.find((q) => q.trim().length > 40) ?? st.steps.find((x) => x.quote.trim().length > 40)?.quote;
+      if (quote && st.steps.length >= 3) {
+        pick = { a, s: st, quote };
+        break;
+      }
+    }
+    if (pick) break;
+  }
+  if (!pick) return null;
+  const { a, s, quote } = pick;
+  return (
+    <a href={`#analyse-${a.id}`} className="card group block min-w-0 p-6 transition hover:-translate-y-0.5 sm:p-7">
+      <div className="flex items-center justify-between gap-3 text-muted-foreground">
+        <span className="eyebrow">Sagt i interviewet</span>
+        <span className="truncate text-xs">
+          {a.expertName} · {formatDate(a.sessionDate, { day: "numeric", month: "short" })}
+        </span>
+      </div>
+      <p className="said text-pretty mt-4 text-[19px] leading-[1.6] sm:text-[21px]">
+        <span className="marked">“{trimQuote(quote)}”</span>
+      </p>
+      <div className="my-6 flex items-center gap-3 text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        <span className="eyebrow">Udledt strategi</span>
+        <span className="h-px flex-1 bg-border" />
+      </div>
+      <StepChain steps={s.steps} />
+      <div className="mt-5 flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="text-pretty font-semibold leading-snug">{s.name}</div>
+          <div className="text-pretty mt-1 text-sm text-muted-foreground">{s.context}</div>
+        </div>
+        <ArrowUpRight className="size-5 shrink-0 text-muted-foreground transition group-hover:text-primary" />
+      </div>
+    </a>
+  );
+}
+
 export function Overview({ ctx }: { ctx: AppCtx }) {
   const { analyses, own, patterns } = ctx.store;
   const records = analyses.map(toRecord);
   const dash = aggregateDashboard(records);
   const suggestions = suggestPatterns(records);
-  const h = Number(new Intl.DateTimeFormat("da-DK", { hour: "numeric", timeZone: "Europe/Copenhagen" }).format(new Date()));
-  const greeting = h < 5 ? "God nat" : h < 10 ? "Godmorgen" : h < 12 ? "God formiddag" : h < 18 ? "God eftermiddag" : "God aften";
+  const primary = [...REP_SYSTEMS].sort((x, y) => dash.vakogAverage[y] - dash.vakogAverage[x])[0]!;
   return (
     <div>
-      <section className="relative overflow-hidden border-b">
-        <div className="bg-aurora absolute inset-0" />
-        <div className="gutter relative mx-auto max-w-7xl py-10">
-          <p className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">Advanced Behavioral Modeling</p>
-          <h1 className="mt-2 text-4xl font-semibold sm:text-5xl">
-            {greeting}. <span className="text-primary italic">Success leaves clues.</span>
-          </h1>
-          <p className="text-pretty mt-3 max-w-2xl text-lg text-muted-foreground">
-            Indsæt et interview, og Claude udtrækker strategier, overbevisninger, værdier, meta-programmer og VAKOG — altid med ordrette citater som belæg.
-            {own.length === 0 && " Fire eksempel-analyser er lagt ind, så du kan se, hvordan det ser ud."}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <LinkButton href="#ny-analyse" size="lg">
-              <Sparkles /> Ny analyse
-            </LinkButton>
-            <LinkButton href="#dashboard" size="lg" variant="outline">
-              Se dashboard <ArrowRight />
-            </LinkButton>
+      <section className="border-b">
+        <div className="gutter mx-auto grid max-w-7xl items-center gap-10 py-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-16">
+          <div className="min-w-0">
+            <div className="eyebrow text-primary">Advanced Behavioral Modeling</div>
+            <h1 className="mt-4 text-[2.6rem] leading-[0.98] sm:text-6xl">
+              Fra det, de siger,
+              <br />
+              til det, de gør.
+            </h1>
+            <p className="text-pretty mt-6 max-w-xl text-[17px] leading-relaxed text-muted-foreground">
+              Indsæt et interview med en, der mestrer noget. Claude udtrækker strategier, overbevisninger, værdier, meta-programmer og VAKOG, og hvert fund peger tilbage på et ordret citat.
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <LinkButton href="#ny-analyse" size="lg">
+                <Sparkles /> Ny analyse
+              </LinkButton>
+              <LinkButton href="#dashboard" size="lg" variant="outline">
+                Se mønstrene <ArrowRight />
+              </LinkButton>
+            </div>
+            {own.length === 0 && <p className="mt-5 text-sm text-muted-foreground">Fire eksempel-analyser er lagt ind, så du kan se resultatet før din første analyse.</p>}
           </div>
+          <Specimen analyses={analyses} />
         </div>
       </section>
       <Container>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
           {[
-            { label: "Analyser", value: analyses.length, icon: FileText, href: "#analyser" },
-            { label: "Eksperter", value: dash.totals.experts, icon: Users, href: "#eksperter" },
-            { label: "Strategier fundet", value: dash.totals.strategies, icon: Workflow, href: "#dashboard" },
-            { label: "Mønstre i biblioteket", value: patterns.length, icon: Library, href: "#moenstre" },
+            { label: "Analyser", value: analyses.length, href: "#analyser" },
+            { label: "Eksperter", value: dash.totals.experts, href: "#eksperter" },
+            { label: "Strategier fundet", value: dash.totals.strategies, href: "#dashboard" },
+            { label: "Mønstre i biblioteket", value: patterns.length, href: "#moenstre" },
           ].map((k) => (
-            <a key={k.label} href={k.href} className="group">
-              <Card className="p-5 transition group-hover:-translate-y-0.5">
-                <div className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
-                  {k.label} <k.icon className="size-4" />
-                </div>
-                <div className="tabular mt-3 font-serif text-4xl font-semibold">{k.value}</div>
-              </Card>
+            <a key={k.label} href={k.href} className="group flex items-end justify-between gap-3 bg-card px-5 py-4 transition hover:bg-muted/60">
+              <div className="min-w-0">
+                <dt className="truncate text-[13px] text-muted-foreground">{k.label}</dt>
+                <dd className="tabular mt-1 text-3xl font-bold tracking-[-0.03em]">{k.value}</dd>
+              </div>
+              <ArrowUpRight className="mb-1 size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
             </a>
           ))}
-        </div>
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-          <Card className="p-0">
-            <div className="flex items-center justify-between p-5 pb-3">
-              <h2 className="text-xl font-semibold">Seneste analyser</h2>
+        </dl>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <section className="min-w-0">
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-xl">Seneste analyser</h2>
               <a href="#analyser" className="text-sm font-semibold text-primary hover:underline">
-                Se alle
+                Alle analyser
               </a>
             </div>
-            <ul className="divide-y">
+            <ul className="card divide-y overflow-hidden">
               {analyses.slice(0, 6).map((a) => (
                 <li key={a.id}>
-                  <a href={`#analyse-${a.id}`} className="flex items-center gap-4 px-5 py-3.5 transition hover:bg-muted/60">
+                  <a href={`#analyse-${a.id}`} className="flex items-center gap-4 px-4 py-3.5 transition hover:bg-muted/60 sm:px-5">
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold text-white" style={{ background: `var(--series-${colorSlot(a.expertName)})` }}>
+                      {initials(a.expertName)}
+                    </span>
                     <div className="min-w-0 flex-1">
                       <div className="truncate font-semibold">{a.title}</div>
                       <div className="mt-0.5 truncate text-sm text-muted-foreground">
@@ -140,39 +234,40 @@ export function Overview({ ctx }: { ctx: AppCtx }) {
                       </div>
                     </div>
                     {a.example ? <ExampleBadge /> : <Badge tone="positive">{a.meta.provider === "claude" ? "Claude" : "Demo"}</Badge>}
-                    <ArrowUpRight className="size-4 text-muted-foreground" />
                   </a>
                 </li>
               ))}
             </ul>
-          </Card>
-          <div className="flex min-w-0 flex-col gap-6">
-            <Card className="p-5">
-              <h2 className="font-sans text-sm font-bold">Samlet VAKOG-profil</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Gennemsnit på tværs af {analyses.length} analyser</p>
-              <div className="mt-4">
-                <DistributionBar distribution={dash.vakogAverage} />
+          </section>
+          <div className="flex min-w-0 flex-col gap-8">
+            <section>
+              <h2 className="mb-3 text-xl">Samlet VAKOG-profil</h2>
+              <div className="card p-5">
+                <div className="mb-3 flex items-baseline justify-between gap-2 text-sm">
+                  <span className="text-muted-foreground">Gennemsnit af {analyses.length} analyser</span>
+                  <span className="font-semibold">{REP_SYSTEM_LABEL[primary]}</span>
+                </div>
+                <DistributionBar distribution={dash.vakogAverage} highlight={primary} />
+                <VakogLegend distribution={dash.vakogAverage} primary={primary} />
               </div>
-            </Card>
-            <Card className="p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-sans text-sm font-bold">Fælles mønstre</h2>
-                <a href="#moenstre" className="text-xs font-semibold text-primary hover:underline">
-                  Se alle
+            </section>
+            <section>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="text-xl">Fælles mønstre</h2>
+                <a href="#moenstre" className="text-sm font-semibold text-primary hover:underline">
+                  Alle mønstre
                 </a>
               </div>
-              <ul className="mt-3 flex flex-col gap-2.5">
+              <ul className="flex flex-col gap-2">
                 {suggestions.slice(0, 4).map((s) => (
-                  <li key={s.key} className="rounded-lg border bg-muted/30 px-3 py-2.5">
-                    <div className="text-sm leading-snug font-semibold">{s.title}</div>
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {s.expertCount} eksperter · {s.occurrences.length} forekomster
-                    </div>
+                  <li key={s.key} className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+                    <span className="min-w-0 text-sm leading-snug font-semibold">{s.title}</span>
+                    <span className="tabular shrink-0 font-mono text-xs text-muted-foreground">{s.expertCount} eksp.</span>
                   </li>
                 ))}
                 {suggestions.length === 0 && <li className="text-sm text-muted-foreground">Analysér mindst to eksperter for at se fælles mønstre.</li>}
               </ul>
-            </Card>
+            </section>
           </div>
         </div>
       </Container>
@@ -289,7 +384,7 @@ export function NewAnalysis({ ctx }: { ctx: AppCtx }) {
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <div className="text-xs font-semibold tracking-[0.18em] text-primary uppercase">{running.mode === "claude" ? "Claude analyserer" : "Demo-analyse"}</div>
-              <h2 className="mt-1 text-2xl font-semibold">{stageText}</h2>
+              <h2 className="mt-1 text-2xl">{stageText}</h2>
               <p className="mt-2 text-sm text-muted-foreground">
                 {running.mode === "claude" ? "En grundig analyse tager typisk 1-3 minutter: Claude tænker først og skriver derefter." : "Uden Claude: en simpel model bygget af transskriptet."} (
                 {Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")})
@@ -329,7 +424,7 @@ export function NewAnalysis({ ctx }: { ctx: AppCtx }) {
         </Card>
       ) : (
         <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <Card className="overflow-hidden">
+          <Card className="self-start overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/40 px-5 py-3">
               <span className="text-sm font-semibold">Transskript</span>
               <div className="flex flex-wrap gap-2">
@@ -495,7 +590,7 @@ export function Experts({ ctx }: { ctx: AppCtx }) {
                   {initials(name)}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-serif text-lg font-semibold">{name}</div>
+                  <div className="truncate text-[17px] font-bold tracking-[-0.01em]">{name}</div>
                   <div className="truncate text-sm text-muted-foreground">{list[0]!.domain || "Ingen rolle angivet"}</div>
                 </div>
                 <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
@@ -524,14 +619,13 @@ export function ExpertProfile({ ctx, expertSlug, setSelected }: { ctx: AppCtx; e
   return (
     <div>
       <section className="relative overflow-hidden border-b">
-        <div className="bg-aurora absolute inset-0 opacity-70" />
         <div className="gutter relative mx-auto flex max-w-7xl flex-col gap-6 py-8 sm:flex-row sm:items-end sm:justify-between">
           <div className="flex items-center gap-5">
             <span className="flex size-20 shrink-0 items-center justify-center rounded-3xl text-2xl font-bold text-white shadow-lg" style={{ background: `var(--series-${colorSlot(name)})` }}>
               {initials(name)}
             </span>
             <div className="min-w-0">
-              <h1 className="text-4xl font-semibold sm:text-5xl">{name}</h1>
+              <h1 className="text-4xl sm:text-5xl">{name}</h1>
               <p className="mt-1 text-lg text-muted-foreground">
                 {list[0]!.domain || "Ingen rolle angivet"} · {list.length} {list.length === 1 ? "session" : "sessioner"}
               </p>
@@ -669,14 +763,14 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
               <span className="size-3 shrink-0 rounded-full" style={{ background: COL(i) }} />
               <span className="truncate text-xs font-semibold tracking-wider text-muted-foreground uppercase">{col.expert}</span>
             </div>
-            <div className="mt-1.5 line-clamp-2 font-serif text-lg leading-snug font-semibold">{col.title}</div>
+            <div className="mt-1.5 line-clamp-2 text-[17px] leading-snug font-bold tracking-[-0.01em]">{col.title}</div>
           </a>
         ))}
       </div>
       <div className="flex flex-col gap-6">
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold">VAKOG</h2>
+            <h2 className="text-xl">VAKOG</h2>
             <div className="mt-5 flex flex-col gap-4">
               {c.columns.map((col, i) => (
                 <div key={col.id}>
@@ -692,7 +786,7 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
             </div>
           </Card>
           <Card className="p-6">
-            <h2 className="text-xl font-semibold">6 Human Needs</h2>
+            <h2 className="text-xl">6 Human Needs</h2>
             <NeedsRadar axes={c.needs.map((n) => HUMAN_NEED_LABEL[n.need])} series={c.columns.map((col, i) => ({ name: col.expert, color: COL(i), values: c.needs.map((n) => n.values[i]!) }))} size={250} />
             <div className="mt-2 flex flex-wrap justify-center gap-x-5 gap-y-1 text-xs">
               {c.columns.map((col, i) => (
@@ -704,7 +798,7 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
           </Card>
         </div>
         <Card className="p-6">
-          <h2 className="text-xl font-semibold">Meta-programmer</h2>
+          <h2 className="text-xl">Meta-programmer</h2>
           <p className="mt-1 text-sm text-muted-foreground">Samme retning i alle analyser med programmet er markeret som fælles.</p>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full text-sm">
@@ -758,7 +852,7 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
         </Card>
         <div className="grid gap-6 lg:grid-cols-2">
           <Card className="p-6">
-            <h2 className="text-xl font-semibold">Værdier</h2>
+            <h2 className="text-xl">Værdier</h2>
             <div className="mt-4 overflow-x-auto">
               <table className="w-full text-sm">
                 <tbody>
@@ -777,7 +871,7 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
             </div>
           </Card>
           <Card className="p-6">
-            <h2 className="text-xl font-semibold">Strategier</h2>
+            <h2 className="text-xl">Strategier</h2>
             <div className="mt-4 flex flex-col gap-4">
               {c.strategies.map((list, i) => (
                 <div key={i}>
@@ -800,7 +894,7 @@ export function Compare({ ctx, selected, setSelected }: { ctx: AppCtx; selected:
           </Card>
         </div>
         <Card className="p-6">
-          <h2 className="text-xl font-semibold">Overbevisninger</h2>
+          <h2 className="text-xl">Overbevisninger</h2>
           <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             {c.columns.map((col, i) => (
               <div key={col.id} className="flex min-w-0 flex-col gap-2">
@@ -872,7 +966,7 @@ export function Patterns({ ctx }: { ctx: AppCtx }) {
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{cat?.title}</div>
-                      <h3 className="mt-0.5 font-serif text-lg leading-snug font-semibold">{p.title}</h3>
+                      <h3 className="mt-0.5 text-[17px] leading-snug font-bold tracking-[-0.01em]">{p.title}</h3>
                     </div>
                     <Button variant="ghost" size="icon" aria-label="Slet mønster" onClick={() => void ctx.store.deletePattern(p.id)}>
                       <Trash2 />
@@ -920,7 +1014,7 @@ export function Patterns({ ctx }: { ctx: AppCtx }) {
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold tracking-wider text-muted-foreground uppercase">{cat?.title}</div>
-                    <h3 className="mt-0.5 font-serif text-lg leading-snug font-semibold">{s.title}</h3>
+                    <h3 className="mt-0.5 text-[17px] leading-snug font-bold tracking-[-0.01em]">{s.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
                   </div>
                 </div>
@@ -1017,7 +1111,7 @@ export function Dashboard({ ctx }: { ctx: AppCtx }) {
                 <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
                   {k.label} <k.icon className="size-4" />
                 </div>
-                <div className="tabular mt-2 font-serif text-3xl font-semibold">{k.value}</div>
+                <div className="tabular mt-2 text-3xl font-bold tracking-[-0.03em]">{k.value}</div>
               </Card>
             ))}
           </div>

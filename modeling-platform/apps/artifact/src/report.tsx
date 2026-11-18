@@ -73,10 +73,11 @@ export function CategoryIcon({ name, className }: { name: string; className?: st
 
 const TONE: Record<Tone, BadgeTone> = { neutral: "neutral", positive: "positive", negative: "negative", info: "info", warning: "warning" };
 
+/** Personens egne ord: kursiv serif med tusch-markering. */
 export function Quote({ text, className }: { text: string; className?: string }) {
   return (
-    <blockquote className={cn("border-l-2 py-0.5 pl-3.5 font-serif text-[15px] leading-relaxed text-foreground/85 italic", className)} style={{ borderColor: "color-mix(in oklch, var(--primary) 40%, transparent)" }}>
-      “{text.trim()}”
+    <blockquote className={cn("said text-pretty text-[15px] leading-[1.65]", className)}>
+      <span className="marked">“{text.trim()}”</span>
     </blockquote>
   );
 }
@@ -88,7 +89,7 @@ interface BlockCtx {
 function ItemCard({ item, ctx }: { item: ReportItem; ctx: BlockCtx }) {
   const quotes = (item.quotes ?? []).filter((q) => q.trim());
   return (
-    <div className="group relative min-w-0 rounded-xl border bg-card p-4 transition hover:shadow-sm">
+    <div className="group relative min-w-0 rounded-xl border bg-card p-4 transition hover:border-[color-mix(in_oklch,var(--primary)_35%,var(--border))]">
       <div className="flex items-start justify-between gap-3">
         <div className="text-pretty min-w-0 leading-snug font-semibold">{item.title}</div>
         {ctx.onSave && (
@@ -116,7 +117,7 @@ function ItemCard({ item, ctx }: { item: ReportItem; ctx: BlockCtx }) {
         <dl className="mt-3 flex flex-col gap-2">
           {item.details.map((d, i) => (
             <div key={i} className="rounded-lg bg-muted px-3 py-2 text-sm">
-              <dt className="text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{d.label}</dt>
+              <dt className="eyebrow text-[10px] text-muted-foreground">{d.label}</dt>
               <dd className="text-pretty mt-0.5">{d.value}</dd>
             </div>
           ))}
@@ -274,22 +275,19 @@ export function ReportBlocks({ blocks, ctx }: { blocks: ReportBlock[]; ctx: Bloc
           case "flow":
             return (
               <div key={i} className="rounded-xl border bg-muted/40 p-4">
-                <div className="mb-3 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">{b.title}</div>
+                <div className="eyebrow mb-3 text-muted-foreground">{b.title}</div>
                 <ol className="flex flex-wrap items-stretch gap-2">
                   {b.steps.map((s, j) => (
                     <li key={j} className="flex min-w-0 items-center gap-2">
-                      <div className="flex max-w-56 min-w-0 flex-col rounded-lg border bg-card px-3 py-2">
-                        <span className="flex items-center gap-2">
-                          <span className="size-2.5 shrink-0 rounded-full" style={{ background: repColorForLabel(s.label) }} />
-                          <span className="font-mono text-sm font-semibold">{s.label}</span>
-                        </span>
+                      <div className="flex max-w-56 min-w-0 flex-col rounded-md border bg-card px-3 py-2" style={{ boxShadow: `inset 0 -3px 0 ${repColorForLabel(s.label)}` }}>
+                        <span className="font-mono text-sm font-semibold">{s.label}</span>
                         {s.caption && <span className="mt-1 text-xs leading-snug text-muted-foreground">{s.caption}</span>}
                       </div>
                       <ArrowRight className="size-4 shrink-0 text-muted-foreground" />
                     </li>
                   ))}
                   <li className="flex items-center">
-                    <span className="rounded-lg bg-secondary px-3 py-2 font-mono text-sm font-semibold text-secondary-foreground">Exit</span>
+                    <span className="rounded-md bg-foreground px-3 py-2 font-mono text-sm font-semibold text-background">Exit</span>
                   </li>
                 </ol>
               </div>
@@ -345,19 +343,19 @@ function Toc({ sections }: { sections: { key: string; title: string; icon: strin
   }, [sections]);
   return (
     <nav aria-label="Indhold" className="flex flex-col gap-0.5">
-      <div className="mb-3 px-3 text-[11px] font-bold tracking-[0.16em] text-muted-foreground uppercase">Indhold</div>
+      <div className="eyebrow mb-3 px-3 text-muted-foreground">Indhold</div>
       {sections.map((s) => (
         <button
           key={s.key}
           onClick={() => document.getElementById(`sec-${s.key}`)?.scrollIntoView({ behavior: "smooth", block: "start" })}
           className={cn(
-            "flex cursor-pointer items-center gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground",
+            "flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-1.5 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground",
             active === s.key && "bg-secondary font-semibold text-secondary-foreground",
           )}
         >
-          <CategoryIcon name={s.icon} className={cn("size-4 shrink-0", active === s.key && "text-primary")} />
-          <span className="truncate">{s.title}</span>
-          {s.count > 0 && <span className="tabular ml-auto text-xs opacity-70">{s.count}</span>}
+          <CategoryIcon name={s.icon} className={cn("mt-0.5 size-4 shrink-0", active === s.key && "text-primary")} />
+          <span className="min-w-0 leading-snug">{s.title}</span>
+          {s.count > 0 && <span className="tabular ml-auto font-mono text-[11px] opacity-70">{s.count}</span>}
         </button>
       ))}
     </nav>
@@ -366,12 +364,14 @@ function Toc({ sections }: { sections: { key: string; title: string; icon: strin
 
 function Stat({ icon: I, label, value, hint }: { icon: LucideIcon; label: string; value: React.ReactNode; hint?: string }) {
   return (
-    <div className="min-w-0 rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <I className="size-4" /> {label}
-      </div>
-      <div className="tabular mt-2 font-serif text-3xl font-semibold">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
+    <div className="min-w-0 bg-card px-5 py-4">
+      <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <I className="size-4 shrink-0" /> <span className="truncate">{label}</span>
+      </dt>
+      <dd className="mt-1 flex items-baseline gap-2">
+        <span className="tabular text-3xl font-bold tracking-[-0.03em]">{value}</span>
+        {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
+      </dd>
     </div>
   );
 }
@@ -479,9 +479,8 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b">
-        <div className="bg-aurora absolute inset-0 opacity-80" />
-        <div className="gutter relative mx-auto max-w-7xl pt-8 pb-8">
+      <section className="border-b">
+        <div className="gutter mx-auto max-w-7xl pt-7 pb-9">
           <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
             <a href="#analyser" className="hover:text-foreground">
               Analyser
@@ -491,9 +490,9 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
           </nav>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="min-w-0 max-w-3xl">
-              <div className="mb-3 text-xs font-semibold tracking-[0.18em] text-primary uppercase">Adfærdsmodel</div>
-              <h1 className="text-4xl leading-[1.05] font-semibold sm:text-5xl">{r.summary.subject}</h1>
-              <p className="text-pretty mt-4 font-serif text-xl leading-snug text-foreground/80 italic">{r.summary.result_modeled}</p>
+              <div className="eyebrow mb-3 text-primary">Adfærdsmodel</div>
+              <h1 className="text-[2.6rem] leading-[1] sm:text-6xl">{r.summary.subject}</h1>
+              <p className="text-pretty mt-4 text-xl leading-snug text-muted-foreground">{r.summary.result_modeled}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 <Badge tone="outline">
                   <User /> <a href={`#ekspert-${slug(a.expertName)}`}>{a.expertName}</a>
@@ -542,12 +541,12 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
       </section>
 
       <div className="gutter mx-auto max-w-7xl py-8">
-        <div className="grid grid-cols-2 gap-4 xl:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border xl:grid-cols-4">
           <Stat icon={Workflow} label="Strategier" value={r.cognitive_strategies.strategies.length} hint={`${r.cognitive_strategies.strategies.filter((s) => s.transferable).length} overførbare`} />
-          <Stat icon={ShieldCheck} label="Styrkende" value={r.enabling_beliefs.beliefs.length} hint="overbevisninger" />
-          <Stat icon={ShieldAlert} label="Begrænsende" value={r.disenabling_beliefs.beliefs.length} hint="overbevisninger" />
-          <Stat icon={Gauge} label="Næste spørgsmål" value={r.gaps_and_next_questions.next_questions.length} hint={`${r.gaps_and_next_questions.gaps.length} mangler`} />
-        </div>
+          <Stat icon={ShieldCheck} label="Styrkende overbevisninger" value={r.enabling_beliefs.beliefs.length} />
+          <Stat icon={ShieldAlert} label="Begrænsende overbevisninger" value={r.disenabling_beliefs.beliefs.length} />
+          <Stat icon={Gauge} label="Næste spørgsmål" value={r.gaps_and_next_questions.next_questions.length} hint={`${r.gaps_and_next_questions.gaps.length} mangler i modellen`} />
+        </dl>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <Card className="p-5">
@@ -587,22 +586,22 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
         <Card className="mt-4 overflow-hidden">
           <div className="grid lg:grid-cols-[1.4fr_1fr]">
             <div className="p-6 sm:p-8">
-              <h2 className="text-2xl font-semibold">Sammenfatning</h2>
+              <h2 className="text-2xl">Sammenfatning</h2>
               <p className="text-pretty mt-3 text-[17px] leading-relaxed text-foreground/90">{r.summary.overview}</p>
               <p className="mt-4 text-sm text-muted-foreground">
                 <span className="font-semibold">Kildegrundlag:</span> {r.summary.source_quality}
               </p>
             </div>
             <div className="border-t bg-muted/40 p-6 sm:p-8 lg:border-t-0 lg:border-l">
-              <h3 className="font-sans text-xs font-bold tracking-[0.14em] text-muted-foreground uppercase">Nøgleindsigter</h3>
-              <ol className="mt-4 flex flex-col gap-3">
+              <h3 className="eyebrow text-muted-foreground">Nøgleindsigter</h3>
+              <ul className="mt-4 flex flex-col gap-3.5">
                 {r.summary.key_insights.map((k, i) => (
                   <li key={i} className="flex gap-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{i + 1}</span>
+                    <span className="mt-[7px] size-2 shrink-0 rotate-45 bg-primary" />
                     <span className="text-pretty leading-snug">{k}</span>
                   </li>
                 ))}
-              </ol>
+              </ul>
             </div>
           </div>
         </Card>
@@ -622,11 +621,11 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
                   <section key={s.key} id={`sec-${s.key}`} className="scroll-mt-6">
                     <Card className="p-6 sm:p-8">
                       <header className="mb-6 flex items-start gap-4">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <CategoryIcon name={cat.icon} className="size-5 text-primary" />
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-secondary">
+                          <CategoryIcon name={cat.icon} className="size-5 text-secondary-foreground" />
                         </span>
                         <div className="min-w-0">
-                          <h2 className="text-2xl font-semibold">{s.title}</h2>
+                          <h2 className="text-2xl">{s.title}</h2>
                           <p className="text-pretty mt-1 text-sm text-muted-foreground">{s.description}</p>
                         </div>
                       </header>

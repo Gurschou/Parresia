@@ -79,7 +79,15 @@ export function NeedsRadar({ axes, series, size = 260 }: { axes: string[]; serie
           return (
             <g key={a}>
               <line x1={cx} y1={cy} x2={x} y2={y} stroke="var(--chart-grid)" strokeWidth={1} />
-              <text x={lx} y={ly} textAnchor={Math.abs(lx - cx) < 4 ? "middle" : lx > cx ? "start" : "end"} dominantBaseline="middle" fill="var(--muted-foreground)" fontSize={11} fontWeight={600}>
+              <text
+                x={lx}
+                y={ly}
+                textAnchor={Math.abs(lx - cx) < 4 ? "middle" : lx > cx ? "start" : "end"}
+                dominantBaseline={Math.abs(lx - cx) < 4 ? (ly < cy ? "auto" : "hanging") : "middle"}
+                fill="var(--muted-foreground)"
+                fontSize={11}
+                fontWeight={600}
+              >
                 {a}
               </text>
             </g>
