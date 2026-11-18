@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Columns3, Sparkles } from "lucide-react";
+import { ChevronRight, Columns3, Puzzle, Sparkles } from "lucide-react";
 import { HUMAN_NEEDS, HUMAN_NEED_LABEL, REP_SYSTEM_LABEL } from "@bm/core";
 import { PageContainer } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/analysis/status-badge";
 import { DeleteExpertButton } from "@/components/experts/delete-expert-button";
+import { SelfToggle } from "@/components/beliefs/match-actions";
 import { DistributionBar, MetaProgramScale, NeedsRadar, VakogLegend } from "@/components/report/overview-charts";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -57,7 +58,10 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
                 {initials(expert.name)}
               </span>
               <div>
-                <h1 className="text-4xl sm:text-5xl">{expert.name}</h1>
+                <h1 className="flex flex-wrap items-center gap-3 text-4xl sm:text-5xl">
+                  {expert.name}
+                  {expert.isSelf && <Badge tone="primary" className="text-xs">Dig</Badge>}
+                </h1>
                 <p className="mt-1 text-lg text-muted-foreground">{expert.role || "Ingen rolle angivet"}</p>
               </div>
             </div>
@@ -67,6 +71,14 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
                   <Sparkles /> Ny analyse
                 </Link>
               </Button>
+              <SelfToggle expertId={expert.id} isSelf={expert.isSelf} />
+              {records.length > 0 && (
+                <Button asChild variant="outline">
+                  <Link href={`/beliefs?person=${expert.id}`}>
+                    <Puzzle /> Overbevisnings-match
+                  </Link>
+                </Button>
+              )}
               {completedIds.length >= 2 && (
                 <Button asChild variant="outline">
                   <Link href={`/compare?ids=${completedIds.join(",")}`}>

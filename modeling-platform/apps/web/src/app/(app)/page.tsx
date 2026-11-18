@@ -11,6 +11,8 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { getAnalysis, listAnalyses } from "@/server/analyses";
 import { getDashboard } from "@/server/dashboard";
+import { getBeliefMatchView } from "@/server/belief-matches";
+import { MatchLine } from "@/components/beliefs/match-parts";
 import { listExperts } from "@/server/experts";
 import { getPatternSuggestions, listPatterns } from "@/server/patterns";
 import { requireUser } from "@/server/session";
@@ -44,13 +46,15 @@ const SERIES = (name: string) => {
 
 export default async function HomePage() {
   const user = await requireUser();
-  const [analyses, experts, dash, patterns, suggestions] = await Promise.all([
+  const [analyses, experts, dash, patterns, suggestions, beliefs] = await Promise.all([
     listAnalyses(user.id, { limit: 8 }),
     listExperts(user.id),
     getDashboard(user.id),
     listPatterns(user.id),
     getPatternSuggestions(user.id),
+    getBeliefMatchView(user.id),
   ]);
+  const selfPerson = beliefs.persons.find((p) => p.isSelf);
   const running = analyses.filter((a) => a.status !== "completed" && a.status !== "failed");
   const specimen = (await findSpecimen(user.id, analyses.filter((a) => a.status === "completed").map((a) => a.id))) ?? EXAMPLE_SPECIMEN;
   const primary = [...REP_SYSTEMS].sort((x, y) => dash.vakogAverage[y] - dash.vakogAverage[x])[0]!;
@@ -175,6 +179,35 @@ export default async function HomePage() {
           </section>
 
           <div className="flex min-w-0 flex-col gap-8">
+            {(selfPerson || beliefs.total > 0) && (
+              <section>
+                <div className="mb-3 flex items-baseline justify-between">
+                  <h2 className="text-xl">{selfPerson ? "Passer til dig" : "Overbevisnings-match"}</h2>
+                  <Link href="/beliefs" className="text-sm font-semibold text-primary hover:underline">
+                    Alle match
+                  </Link>
+                </div>
+                <Card className="p-5">
+                  {selfPerson ? (
+                    beliefs.incoming.length ? (
+                      <ul className="space-y-4">
+                        {beliefs.incoming.slice(0, 3).map((m) => (
+                          <li key={m.id}>
+                            <MatchLine match={m} side="from" />
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Endnu ingen af de andres overbevisninger, der passer tydeligt til dig. Matchet opdateres, hver gang et nyt transskript kommer ind.</p>
+                    )
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-pretty">
+                      {beliefs.total} match mellem {beliefs.persons.length} personer. Markér din egen profil med “Markér som mig” for at se, hvad der passer til dig.
+                    </p>
+                  )}
+                </Card>
+              </section>
+            )}
             <section>
               <h2 className="mb-3 text-xl">Samlet VAKOG-profil</h2>
               <Card className="p-5">

@@ -4,6 +4,7 @@ import { ArrowUpRight, Users } from "lucide-react";
 import { EmptyState, PageContainer, PageHeader } from "@/components/app/page-header";
 import { NewExpertButton } from "@/components/experts/new-expert-button";
 import { ProjectsPanel } from "@/components/experts/projects-panel";
+import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { listExperts, listProjects } from "@/server/experts";
 import { requireUser } from "@/server/session";
@@ -43,7 +44,10 @@ export default async function ExpertsPage() {
                       {initials(e.name)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-[17px] font-bold tracking-[-0.01em]">{e.name}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[17px] font-bold tracking-[-0.01em]">{e.name}</span>
+                        {e.isSelf && <Badge tone="primary" className="shrink-0">Dig</Badge>}
+                      </div>
                       <div className="truncate text-sm text-muted-foreground">{e.role || "Ingen rolle angivet"}</div>
                     </div>
                     <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition group-hover:opacity-100" />

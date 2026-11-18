@@ -41,3 +41,8 @@ export type { ComparisonData, ComparisonColumn } from "./insights/compare";
 export { suggestPatterns } from "./insights/patterns";
 export type { PatternSuggestion, PatternOccurrence } from "./insights/patterns";
 export { similarity, normalizeKey } from "./insights/text-similarity";
+export * from "./insights/belief-match";
+export { needsInText, NEED_WORDS } from "./insights/need-lexicon";
+export { buildBeliefMatchMessage } from "./prompt/build-belief-match-message";
+export { matchBeliefs, BELIEF_MATCH_API_JSON_SCHEMA } from "./analyzer/match-beliefs";
+export type { BeliefMatchRun, MatchBeliefsOptions } from "./analyzer/match-beliefs";

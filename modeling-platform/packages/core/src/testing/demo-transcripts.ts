@@ -83,3 +83,33 @@ Interviewer: Hvad er svært for dig?
 Sara: At sige nej til nye muligheder. Jeg ser muligheder overalt, og jeg vil prøve det hele. Det koster fokus. Jeg har en tanke om, at hvis jeg siger nej, går jeg glip af noget stort.`,
   },
 ];
+
+/**
+ * Brugerens eget (fiktive) interview — demokontoens "Det er mig"-profil. Viser
+ * overbevisnings-matchet fra brugerens side: hvad fra eksperterne passer til mig?
+ */
+export const SELF_DEMO_TRANSCRIPT = {
+  expert: "Demo Coach",
+  role: "Coach",
+  title: "Mit eget interview",
+  daysAgo: 3,
+  transcript: `Interviewer: Hvad er det, du gør godt som coach?
+
+Mig: Jeg forbereder mig grundigt. Før hver session læser jeg mine noter igennem og ser klienten for mig. Jeg er en person, der forbereder mig, også når jeg ikke behøver.
+
+Interviewer: Hvad driver dig?
+
+Mig: At hjælpe folk med at finde deres egen vej. Når en klient pludselig ser et mønster, de ikke har set før, føles det som det hele værd. Og friheden til at bestemme over min egen tid.
+
+Interviewer: Hvad holder dig tilbage?
+
+Mig: Jeg vil gerne have styr på det hele, før jeg siger ja til noget nyt. Et nyt forløb, en workshop. Så venter jeg og venter, og nogle gange er muligheden væk.
+
+Interviewer: Hvordan har du det med at lave fejl?
+
+Mig: Ærligt? Hvis jeg laver fejl foran en klient, føler jeg, at jeg ikke er god nok som coach. Det sætter sig som et pres i maven før store sessioner.
+
+Interviewer: Hvordan bliver du overbevist om en ny metode?
+
+Mig: Jeg skal have set resultaterne hos mine egne klienter. Før det tror jeg ikke rigtig på det.`,
+};

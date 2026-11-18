@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterAll, describe, expect, it } from "vitest";
 import { AnalysisResultSchema, SAMPLE_TRANSCRIPT } from "@bm/core";
+import { DEMO_TRANSCRIPTS, SELF_DEMO_TRANSCRIPT } from "@bm/core/demo";
 import { run, type Io } from "../src/program";
 
 const dir = mkdtempSync(path.join(os.tmpdir(), "bm-cli-test-"));
@@ -91,5 +92,36 @@ describe("modeling-cli", () => {
 
     expect(await run(["analyze", transcript, "--mock", "--format", "docx"], capture())).toBe(2);
     expect(await run(["ukendt-kommando"], capture())).not.toBe(0);
+  });
+
+  it("match: finder overbevisninger, der passer begge veje", async () => {
+    const files: string[] = [];
+    for (const [name, text] of [
+      ["mig", SELF_DEMO_TRANSCRIPT.transcript],
+      ["sara", DEMO_TRANSCRIPTS.find((t) => t.expert === "Sara Lund")!.transcript],
+      ["jonas", DEMO_TRANSCRIPTS.find((t) => t.expert === "Jonas Krag")!.transcript],
+    ] as const) {
+      const f = path.join(dir, `${name}.txt`);
+      writeFileSync(f, text);
+      const expert = name === "mig" ? "Mig" : name === "sara" ? "Sara Lund" : "Jonas Krag";
+      expect(await run(["analyze", f, "--mock", "--format", "json", "--quiet", "--expert", expert], capture())).toBe(0);
+      files.push(path.join(dir, `${name}.analysis.json`));
+    }
+    const io = capture();
+    expect(await run(["match", ...files, "--mock"], io)).toBe(0);
+    const out = io.stdout.join("\n");
+    expect(out).toContain("Passer til Mig");
+    expect(out).toContain("Migs overbevisninger, der passer til andre");
+    expect(out).toContain("En god beslutning i dag er bedre end en perfekt beslutning om en måned.");
+    expect(io.stderr.join("\n")).toContain("Match færdigt");
+
+    const json = capture();
+    expect(await run(["match", ...files, "--offline", "--json"], json)).toBe(0);
+    const parsed = JSON.parse(json.stdout.join("\n"));
+    expect(parsed.source).toBe("heuristic");
+    expect(parsed.matches.length).toBeGreaterThan(0);
+
+    const same = capture();
+    expect(await run(["match", files[0]!, files[0]!, "--offline"], same)).toBe(2);
   });
 });

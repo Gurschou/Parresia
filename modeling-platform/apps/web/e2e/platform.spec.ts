@@ -105,6 +105,16 @@ test("lyd-upload: transskribering → analyse", async () => {
   await expect(page.getByText("interview-jonas.mp3").first()).toBeVisible();
 });
 
+test("overbevisnings-match: rapporten matcher mod biblioteket, og siden samler det", async () => {
+  // Rapporten for den nyeste analyse har et match-felt, der fyldes ud i baggrunden.
+  await expect(page.getByRole("heading", { level: 2, name: "Overbevisnings-match" })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 3, name: /Passer til/ }).first()).toBeVisible({ timeout: 30_000 });
+  await page.goto("/beliefs");
+  await expect(page.getByRole("heading", { level: 1, name: "Hvilke overbevisninger passer til hvem?" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Vælg person" }).getByText("Mette Holm")).toBeVisible();
+  await expect(page.getByText("Vil du se, hvad der passer til dig?")).toBeVisible();
+});
+
 test("sammenligning og dashboard viser data på tværs af analyser", async () => {
   await page.goto("/analyses");
   const boxes = page.getByRole("checkbox");
@@ -126,6 +136,11 @@ test("ekspertprofil samler sessioner", async () => {
   await page.getByText("Mette Holm").first().click();
   await expect(page.getByRole("heading", { name: "Samlet profil" })).toBeVisible();
   await expect(page.getByText("Strategier på tværs af sessioner")).toBeVisible();
+  // "Det er mig" → overbevisnings-matchet vises fra brugerens side.
+  await page.getByRole("button", { name: "Markér som mig" }).click();
+  await expect(page.getByRole("button", { name: "Det er mig" })).toBeVisible();
+  await page.goto("/beliefs");
+  await expect(page.getByRole("heading", { level: 2, name: "Passer til dig" })).toBeVisible();
 });
 
 test("log ud", async () => {

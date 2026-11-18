@@ -1,26 +1,30 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { BarChart3, Cloud, Columns3, FileText, HardDrive, LayoutGrid, Library, Loader2, Menu, Moon, Sparkles, Sun, Users, X } from "lucide-react";
+import { BarChart3, Cloud, Columns3, FileText, HardDrive, LayoutGrid, Library, Loader2, Menu, Moon, Puzzle, Sparkles, Sun, Users, X } from "lucide-react";
 import { cn } from "./lib";
 import { useCap, type DownloadsCap, type SampleFn } from "./runtime";
-import { useStore } from "./store";
+import { useStore, type StoredAnalysis } from "./store";
+import { BeliefMatchPage } from "./beliefs";
+import { runBeliefMatch } from "./match";
 import { EmptyState, LinkButton, useToast } from "./ui";
 import { ReportView } from "./report";
 import { AnalysesList, Compare, Dashboard, ExpertProfile, Experts, NewAnalysis, Overview, Patterns } from "./views";
 import type { AppCtx } from "./app-ctx";
 
 /* Hash-ruter (kun simple navne): #oversigt, #ny-analyse, #analyser, #analyse-<id>,
-   #eksperter, #ekspert-<slug>, #sammenlign, #moenstre, #dashboard */
+   #eksperter, #ekspert-<slug>, #match, #match-<slug>, #sammenlign, #moenstre, #dashboard */
 type Route =
-  | { name: "oversigt" | "ny-analyse" | "analyser" | "eksperter" | "sammenlign" | "moenstre" | "dashboard" }
+  | { name: "oversigt" | "ny-analyse" | "analyser" | "eksperter" | "match" | "sammenlign" | "moenstre" | "dashboard" }
   | { name: "analyse"; id: string }
-  | { name: "ekspert"; slug: string };
+  | { name: "ekspert"; slug: string }
+  | { name: "match-person"; slug: string };
 
 function parseHash(): Route {
   const h = decodeURIComponent(location.hash.replace(/^#/, ""));
   if (h.startsWith("analyse-")) return { name: "analyse", id: h.slice(8) };
   if (h.startsWith("ekspert-")) return { name: "ekspert", slug: h.slice(8) };
-  const simple = ["ny-analyse", "analyser", "eksperter", "sammenlign", "moenstre", "dashboard"] as const;
+  if (h.startsWith("match-")) return { name: "match-person", slug: h.slice(6) };
+  const simple = ["ny-analyse", "analyser", "eksperter", "match", "sammenlign", "moenstre", "dashboard"] as const;
   return { name: (simple as readonly string[]).includes(h) ? (h as (typeof simple)[number]) : "oversigt" };
 }
 
@@ -42,6 +46,7 @@ const NAV = [
   { key: "ny-analyse", label: "Ny analyse", icon: Sparkles, match: ["ny-analyse"] },
   { key: "analyser", label: "Analyser", icon: FileText, match: ["analyser", "analyse"] },
   { key: "eksperter", label: "Eksperter", icon: Users, match: ["eksperter", "ekspert"] },
+  { key: "match", label: "Overbevisnings-match", icon: Puzzle, match: ["match", "match-person"] },
   { key: "sammenlign", label: "Sammenlign", icon: Columns3, match: ["sammenlign"] },
   { key: "moenstre", label: "Mønstre", icon: Library, match: ["moenstre"] },
   { key: "dashboard", label: "Dashboard", icon: BarChart3, match: ["dashboard"] },
@@ -137,6 +142,7 @@ function App() {
   const [capsReady, setCapsReady] = React.useState(false);
   const [selected, setSelected] = React.useState<string[]>([]);
   const [menuOpen, setMenuOpen] = React.useState(false);
+  const [matching, setMatching] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     let alive = true;
@@ -154,11 +160,26 @@ function App() {
 
   React.useEffect(() => setMenuOpen(false), [route]);
 
+  const runMatch = async (analysis: StoredAnalysis, all: StoredAnalysis[], useClaude: boolean) => {
+    setMatching((m) => (m.includes(analysis.id) ? m : [...m, analysis.id]));
+    try {
+      const run = await runBeliefMatch(analysis, all, { sample: useClaude ? sample : null });
+      await store.saveMatchRun(run);
+      if (run.personCount > 0) toast(`Overbevisnings-match klar: ${run.matches.length} match for ${analysis.expertName}`, "positive");
+    } catch (e) {
+      if ((e as { code?: string })?.code !== "cancelled") toast("Overbevisnings-matchet kunne ikke gemmes.", "negative");
+    } finally {
+      setMatching((m) => m.filter((x) => x !== analysis.id));
+    }
+  };
+
   const ctx: AppCtx = {
     store,
     toast,
     sample,
     capsReady,
+    matching,
+    runMatch,
     canDownload: !!downloads,
     download: async (filename, data) => {
       if (!downloads) return;
@@ -216,6 +237,12 @@ function App() {
       break;
     case "ekspert":
       page = <ExpertProfile ctx={ctx} expertSlug={route.slug} setSelected={setSelected} />;
+      break;
+    case "match":
+      page = <BeliefMatchPage ctx={ctx} />;
+      break;
+    case "match-person":
+      page = <BeliefMatchPage ctx={ctx} personSlug={route.slug} />;
       break;
     case "sammenlign":
       page = <Compare ctx={ctx} selected={selected} setSelected={setSelected} />;

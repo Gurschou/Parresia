@@ -13,7 +13,7 @@ Analysen udtrækker:
 - **eye accessing cues**
 - **mangler og de næste spørgsmål**
 
-Ét system med seks dele:
+Ét system med syv dele:
 
 | | |
 |---|---|
@@ -23,8 +23,11 @@ Analysen udtrækker:
 | 4. **Rapporter** | PDF og Markdown med alle sektioner og ordrette citater, plus JSON |
 | 5. **CLI** | `modeling-cli analyze transcript.txt` / `audio.mp3` / `video.mp4` |
 | 6. **Dashboard** | Meta-programmer, VAKOG, værdier, behov og overbevisninger over tid og på tværs af eksperter |
+| 7. **Overbevisnings-match** | Hver ny analyse matches automatisk mod alle andre personer, begge veje: hvilke overbevisninger der passer til dig, og hvilke af dine der passer til andre |
 
 ![Rapport](docs/screenshots/report.jpg)
+
+![Overbevisnings-match](docs/screenshots/beliefs.jpg)
 
 <table><tr>
 <td><img src="docs/screenshots/dashboard.jpg" alt="Dashboard"></td>
@@ -45,7 +48,7 @@ cd modeling-platform
 pnpm install
 cp .env.example apps/web/.env.local     # udfyld ANTHROPIC_API_KEY (se nedenfor)
 pnpm db:migrate                          # opretter databasen (PGlite, ingen installation)
-pnpm db:seed                             # valgfrit: demokonto med 3 eksperter og 4 analyser
+pnpm db:seed                             # valgfrit: demokonto med 3 eksperter, din egen profil og 5 analyser
 pnpm dev                                 # → http://localhost:3000
 ```
 
@@ -113,6 +116,26 @@ Alle variabler er dokumenteret i [`.env.example`](.env.example). De vigtigste:
 - **Kvote pr. bruger** (analyser pr. time) i databasen, så den gælder på tværs af genstarter.
 - **Baggrundsjobs** skriver status og fremdrift løbende og genoptages ved genstart. Fejlede analyser kan køres igen.
 
+### Overbevisnings-match
+
+Hver gang en analyse er færdig, sammenligner platformen personens overbevisninger med alle andre personer i biblioteket. Kommer der fx et transskript med Tony Robbins ind, finder den både hvilke af hans overbevisninger der passer til dig, og hvilke af dine der passer til ham.
+
+- **Tre slags match:**
+  - **Modvægt:** en styrkende overbevisning, der kan løsne en af modtagerens begrænsende.
+  - **Passer til:** en styrkende overbevisning, der passer til modtagerens værdier, dominerende behov eller mål.
+  - **Fælles:** begge har allerede en beslægtet overbevisning; fælles begrænsninger markeres med rødt.
+- **Hvert match har:** pasform 0-100, ordret citat fra afsenderen, en begrundelse, der henviser til modtagerens egne fund, og ét spørgsmål, man kan prøve overbevisningen på med.
+- **"Det er mig":** markér din egen ekspertprofil, så vises matchet som "passer til dig" på forsiden, i rapporterne og på siden *Overbevisnings-match*.
+- **Samme regler som analysen:**
+  - Kaldet bruger den uændrede `SYSTEM_PROMPT`. Opgaven og et inventar af de allerede udtrukne fund med id'er ligger i brugerbeskeden.
+  - Svaret er structured output og valideres lokalt.
+  - Id'erne slås op i de gemte analyser, så udsagn og citater aldrig kommer fra modellens hukommelse.
+  - Begrænsende overbevisninger gives aldrig videre som noget, der "passer".
+- **Robusthed:**
+  - Kan Claude ikke svare, bruges en tekstbaseret match (`heuristicMatches`), og det står i rapporten.
+  - Matchet kører i baggrunden, én bruger ad gangen, og afbrudte kørsler genoptages ved genstart.
+  - Ældre analyser kan matches med ét klik.
+
 ### Tilføj en ny analysekategori
 
 Én ny fil i `packages/core/src/categories/` plus én linje i `registry.ts`. Schema, prompt, rapport (MD, PDF og web), dashboard-tal og "mangler"-mål følger automatisk med. Se [`CLAUDE.md`](CLAUDE.md).
@@ -135,6 +158,8 @@ modeling-cli analyze <fil> [--out dir] [--format json,md,pdf] [--expert navn] [-
 modeling-cli transcribe <lyd/video>      # kun transskribering → .transcript.txt
 modeling-cli report <x.analysis.json>    # (gen)skab Markdown/PDF fra en gemt analyse
 modeling-cli validate <x.analysis.json>  # schema-validering, exit-kode 1 ved fejl
+modeling-cli match <mig.analysis.json> <andre.analysis.json…> [--mock] [--offline] [--json]
+                                         # overbevisninger, der passer begge veje
 modeling-cli schema                      # udskriv JSON-schemaet
 modeling-cli doctor                      # tjek nøgler, ffmpeg og providers
 ```
@@ -158,6 +183,10 @@ Alle endpoints kræver login (Auth.js-session). Fejl har formen `{ "error": { "c
 | `GET/POST` | `/api/experts`, `/api/projects` | Eksperter ("model/ekspert") og projekter |
 | `GET/POST` | `/api/patterns` · `POST/DELETE /api/patterns/:id/examples` | Mønsterbiblioteket |
 | `GET` | `/api/patterns/suggestions` | Automatisk fundne fælles mønstre |
+| `GET/POST` | `/api/analyses/:id/matches` | Analysens overbevisnings-match (status og resultat) · kør det igen (**202**) |
+| `GET` | `/api/beliefs?person=<nøgle>` | Alle match for én person (standard: dig selv) + overblik over alle personer |
+| `POST` | `/api/beliefs/backfill` | Match færdige analyser, der endnu ikke er matchet (**202**) |
+| `PATCH` | `/api/experts/:id` `{ isSelf: true }` | Markér eksperten som dig selv (kun én ad gangen) |
 | `GET` | `/api/compare?ids=a,b[,c,d]` | Side-om-side-sammenligning |
 | `GET` | `/api/dashboard?projectId=&expertId=` | Aggregerede mønstre |
 | `GET` | `/api/health` | Status (DB, provider, model) |
@@ -189,6 +218,10 @@ docker compose up --build
 - **Analyse** via artifact-runtimens `sample` på seerens egen Claude-konto (første gang spørger claude.ai om lov). Samme `SYSTEM_PROMPT`, brugerbesked, schema, oprydning (`coerceToSchema`), Zod-validering og reparationsrunde som web og CLI.
 - **Rapport** med alle kategorier, gem fund i mønsterbiblioteket, download som PDF (React-PDF i browseren), Markdown og JSON via `downloads`.
 - **Historik, eksperter, sammenligning, mønstre og dashboard** med samme `@bm/core`-indsigter. Fire eksempel-analyser er indbygget og markeret som eksempler.
+- **Overbevisnings-match** efter hver ny analyse:
+  - Med Claude, når analysen er lavet med Claude; ellers tekstbaseret.
+  - Samme inventar, brugerbesked og lokale validering som web-appen.
+  - "Det er mig" gemmes privat sammen med analyserne.
 - **Lagring** privat pr. bruger i artifactets database (`data/users/<id>/…`). Uden for claude.ai falder den tilbage til browserens lager.
 
 ```bash

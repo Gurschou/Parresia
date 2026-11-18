@@ -1,4 +1,4 @@
-import { and, asc, count, eq, max } from "drizzle-orm";
+import { and, asc, count, desc, eq, max, ne } from "drizzle-orm";
 import { z } from "zod";
 import { getDb, schema } from "@/db";
 import { HttpError, notFound } from "./http";
@@ -7,6 +7,7 @@ export const ExpertInputSchema = z.object({
   name: z.string().trim().min(1, "Navn er påkrævet").max(120),
   role: z.string().trim().max(200).optional().default(""),
   description: z.string().trim().max(2000).optional().default(""),
+  isSelf: z.boolean().optional().default(false),
   projectId: z
     .string()
     .trim()
@@ -35,6 +36,7 @@ export async function listExperts(userId: string) {
       name: schema.experts.name,
       role: schema.experts.role,
       description: schema.experts.description,
+      isSelf: schema.experts.isSelf,
       projectId: schema.experts.projectId,
       projectName: schema.projects.name,
       createdAt: schema.experts.createdAt,
@@ -46,7 +48,7 @@ export async function listExperts(userId: string) {
     .leftJoin(schema.analyses, eq(schema.analyses.expertId, schema.experts.id))
     .where(eq(schema.experts.ownerId, userId))
     .groupBy(schema.experts.id, schema.projects.name)
-    .orderBy(asc(schema.experts.name));
+    .orderBy(desc(schema.experts.isSelf), asc(schema.experts.name));
 }
 export type ExpertListItem = Awaited<ReturnType<typeof listExperts>>[number];
 
@@ -61,15 +63,23 @@ export async function createExpert(userId: string, raw: unknown) {
   const input = ExpertInputSchema.parse(raw);
   await assertProject(userId, input.projectId);
   const db = await getDb();
+  if (input.isSelf) await db.update(schema.experts).set({ isSelf: false }).where(eq(schema.experts.ownerId, userId));
   const [e] = await db.insert(schema.experts).values({ ...input, ownerId: userId }).returning();
   return e!;
 }
 
 export async function updateExpert(userId: string, id: string, raw: unknown) {
   await getExpert(userId, id);
-  const input = ExpertInputSchema.partial().parse(raw);
+  const r = (raw ?? {}) as Record<string, unknown>;
+  const parsed = ExpertInputSchema.partial().parse(raw);
+  // partial() bevarer defaults — kun felter, der faktisk er sendt, opdateres.
+  const input = Object.fromEntries(Object.entries(parsed).filter(([k]) => k in r)) as typeof parsed;
   if (input.projectId !== undefined) await assertProject(userId, input.projectId);
   const db = await getDb();
+  // Kun én "det er mig" pr. bruger.
+  if (input.isSelf) {
+    await db.update(schema.experts).set({ isSelf: false }).where(and(eq(schema.experts.ownerId, userId), ne(schema.experts.id, id)));
+  }
   const [e] = await db.update(schema.experts).set(input).where(eq(schema.experts.id, id)).returning();
   return e!;
 }

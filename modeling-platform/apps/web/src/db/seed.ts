@@ -7,9 +7,10 @@
  */
 import { eq } from "drizzle-orm";
 import { MockLlmClient, RateLimiter, analyzeTranscript } from "@bm/core";
-import { DEMO_TRANSCRIPTS } from "@bm/core/demo";
+import { DEMO_TRANSCRIPTS, SELF_DEMO_TRANSCRIPT } from "@bm/core/demo";
 import { closeDb, getDb, schema } from "./index";
 import { hashPassword } from "../server/password";
+import { runBeliefMatch } from "../server/belief-matches";
 
 const EMAIL = process.env.SEED_EMAIL ?? "demo@parresia.dk";
 const PASSWORD = process.env.SEED_PASSWORD ?? "demo1234";
@@ -33,19 +34,22 @@ const experts = new Map<string, string>();
 const llm = new MockLlmClient();
 const limiter = new RateLimiter({ maxConcurrent: 4, maxRequests: 1000 });
 
-for (const t of DEMO_TRANSCRIPTS) {
+const analysisIds: string[] = [];
+const transcripts = [...DEMO_TRANSCRIPTS, { ...SELF_DEMO_TRANSCRIPT, self: true }].sort((a, b) => b.daysAgo - a.daysAgo);
+for (const t of transcripts) {
+  const self = "self" in t && t.self;
   if (!experts.has(t.expert)) {
     const [e] = await db
       .insert(schema.experts)
-      .values({ ownerId: user!.id, projectId: project!.id, name: t.expert, role: t.role })
+      .values({ ownerId: user!.id, projectId: self ? null : project!.id, name: t.expert, role: t.role, isSelf: self })
       .returning();
     experts.set(t.expert, e!.id);
   }
   const env = await analyzeTranscript({ transcript: t.transcript, context: { subjectName: t.expert, domain: t.role } }, { llm, limiter });
   const date = new Date(Date.now() - t.daysAgo * 86400_000);
-  await db.insert(schema.analyses).values({
+  const [row] = await db.insert(schema.analyses).values({
     ownerId: user!.id,
-    projectId: project!.id,
+    projectId: self ? null : project!.id,
     expertId: experts.get(t.expert)!,
     title: t.title,
     sourceType: "text",
@@ -63,8 +67,14 @@ for (const t of DEMO_TRANSCRIPTS) {
     sessionDate: date.toISOString().slice(0, 10),
     createdAt: date,
     completedAt: date,
-  });
+  }).returning();
+  analysisIds.push(row!.id);
   console.log(`✓ ${t.expert}: ${t.title}`);
 }
+
+// Overbevisnings-match, som det sker efter hver analyse (her med mock-provideren).
+for (const id of analysisIds) await runBeliefMatch(id, undefined, { llm });
+const matchCount = (await db.select().from(schema.beliefMatches)).filter((m) => m.ownerId === user!.id).length;
+console.log(`✓ Overbevisnings-match: ${matchCount} match på tværs af ${experts.size} personer`);
 await closeDb();
 console.log(`\nDemokonto klar → ${EMAIL} / ${PASSWORD}`);

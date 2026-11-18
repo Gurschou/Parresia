@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DEMO_TRANSCRIPTS, countVakogPredicates, type AnalysisResult, type LexiconCounts } from "./lib";
+import { DEMO_TRANSCRIPTS, countVakogPredicates, type AnalysisResult, type BeliefMatch, type LexiconCounts, type MatchSource } from "./lib";
 import { EXAMPLE_RESULTS, EXAMPLE_SOURCES } from "./examples";
 import { useCap, type Db } from "./runtime";
 
@@ -43,6 +43,22 @@ export interface StoredPattern {
   createdAt: string;
 }
 
+/** Overbevisnings-match for én analyse (kørt, da analysen blev gemt, eller senere). */
+export interface StoredMatchRun {
+  analysisId: string;
+  source: MatchSource;
+  summary: string;
+  note: string;
+  personCount: number;
+  matches: BeliefMatch[];
+  createdAt: string;
+}
+
+export interface Settings {
+  /** Navnet på den person i biblioteket, der er brugeren selv ("Det er mig"). */
+  selfName: string;
+}
+
 export type Backend = "loading" | "db" | "local" | "memory";
 
 const LOCAL_KEY = "parresia-modeling-v1";
@@ -67,21 +83,29 @@ export const EXAMPLES: StoredAnalysis[] = EXAMPLE_SOURCES.map(({ id, demoIndex }
   };
 });
 
-function readLocal(): { analyses: StoredAnalysis[]; patterns: StoredPattern[] } {
+interface LocalData {
+  analyses: StoredAnalysis[];
+  patterns: StoredPattern[];
+  matches: StoredMatchRun[];
+  settings: Settings;
+}
+const EMPTY_SETTINGS: Settings = { selfName: "" };
+
+function readLocal(): LocalData {
   try {
     const raw = window.localStorage.getItem(LOCAL_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      return { analyses: p.analyses ?? [], patterns: p.patterns ?? [] };
+      return { analyses: p.analyses ?? [], patterns: p.patterns ?? [], matches: p.matches ?? [], settings: { ...EMPTY_SETTINGS, ...p.settings } };
     }
   } catch {
     /* blokeret lager: tom start */
   }
-  return { analyses: [], patterns: [] };
+  return { analyses: [], patterns: [], matches: [], settings: EMPTY_SETTINGS };
 }
-function writeLocal(analyses: StoredAnalysis[], patterns: StoredPattern[]): boolean {
+function writeLocal(d: LocalData): boolean {
   try {
-    window.localStorage.setItem(LOCAL_KEY, JSON.stringify({ analyses, patterns }));
+    window.localStorage.setItem(LOCAL_KEY, JSON.stringify(d));
     return true;
   } catch {
     return false;
@@ -98,6 +122,8 @@ export function useStore() {
   const [backend, setBackend] = React.useState<Backend>("loading");
   const [own, setOwn] = React.useState<StoredAnalysis[]>([]);
   const [patterns, setPatterns] = React.useState<StoredPattern[]>([]);
+  const [matchRuns, setMatchRuns] = React.useState<StoredMatchRun[]>([]);
+  const [settings, setSettings] = React.useState<Settings>(EMPTY_SETTINGS);
   const [stale, setStale] = React.useState(false);
   const ref = React.useRef<{ db: Db; uid: string } | null>(null);
 
@@ -120,14 +146,20 @@ export function useStore() {
             }
             const a: StoredAnalysis[] = [];
             const p: StoredPattern[] = [];
+            const m: StoredMatchRun[] = [];
+            let st = EMPTY_SETTINGS;
             for (const d of snap.docs) {
               const v = d.data() as Record<string, unknown> | undefined;
               if (!v) continue;
               if (v.kind === "analysis") a.push(v.value as StoredAnalysis);
               else if (v.kind === "pattern") p.push(v.value as StoredPattern);
+              else if (v.kind === "match") m.push(v.value as StoredMatchRun);
+              else if (v.kind === "settings") st = { ...EMPTY_SETTINGS, ...(v.value as Settings) };
             }
             setOwn(a);
             setPatterns(p.sort((x, y) => y.createdAt.localeCompare(x.createdAt)));
+            setMatchRuns(m);
+            setSettings(st);
           },
           () => {
             window.clearTimeout(timer);
@@ -135,6 +167,8 @@ export function useStore() {
             const l = readLocal();
             setOwn(l.analyses);
             setPatterns(l.patterns);
+            setMatchRuns(l.matches);
+            setSettings(l.settings);
             setBackend("local");
           },
         );
@@ -143,7 +177,9 @@ export function useStore() {
         const l = readLocal();
         setOwn(l.analyses);
         setPatterns(l.patterns);
-        setBackend(writeLocal(l.analyses, l.patterns) ? "local" : "memory");
+        setMatchRuns(l.matches);
+        setSettings(l.settings);
+        setBackend(writeLocal(l) ? "local" : "memory");
       }
     })();
     return () => {
@@ -153,8 +189,12 @@ export function useStore() {
     };
   }, []);
 
-  const persistLocal = React.useCallback((a: StoredAnalysis[], p: StoredPattern[]) => {
-    if (!ref.current) writeLocal(a, p);
+  // Seneste lokale tilstand, så hver skrivning gemmer det hele (kun uden db).
+  const local = React.useRef<LocalData>({ analyses: [], patterns: [], matches: [], settings: EMPTY_SETTINGS });
+  local.current = { analyses: own, patterns, matches: matchRuns, settings };
+  const persistLocal = React.useCallback((patch: Partial<LocalData>) => {
+    local.current = { ...local.current, ...patch };
+    if (!ref.current) writeLocal(local.current);
   }, []);
 
   const saveAnalysis = React.useCallback(
@@ -167,25 +207,33 @@ export function useStore() {
       } else {
         setOwn((cur) => {
           const next = [x, ...cur.filter((c) => c.id !== x.id)];
-          persistLocal(next, patterns);
+          persistLocal({ analyses: next });
           return next;
         });
       }
     },
-    [patterns, persistLocal],
+    [persistLocal],
   );
 
   const deleteAnalysis = React.useCallback(
     async (id: string) => {
-      if (ref.current) await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`a-${id}`).delete();
-      else
+      if (ref.current) {
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`a-${id}`).delete();
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`m-${id}`).delete().catch(() => {});
+      } else {
         setOwn((cur) => {
           const next = cur.filter((c) => c.id !== id);
-          persistLocal(next, patterns);
+          persistLocal({ analyses: next });
           return next;
         });
+        setMatchRuns((cur) => {
+          const next = cur.filter((m) => m.analysisId !== id);
+          persistLocal({ matches: next });
+          return next;
+        });
+      }
     },
-    [patterns, persistLocal],
+    [persistLocal],
   );
 
   const savePattern = React.useCallback(
@@ -194,11 +242,11 @@ export function useStore() {
       else
         setPatterns((cur) => {
           const next = [x, ...cur.filter((c) => c.id !== x.id)];
-          persistLocal(own, next);
+          persistLocal({ patterns: next });
           return next;
         });
     },
-    [own, persistLocal],
+    [persistLocal],
   );
 
   const deletePattern = React.useCallback(
@@ -207,15 +255,43 @@ export function useStore() {
       else
         setPatterns((cur) => {
           const next = cur.filter((c) => c.id !== id);
-          persistLocal(own, next);
+          persistLocal({ patterns: next });
           return next;
         });
     },
-    [own, persistLocal],
+    [persistLocal],
+  );
+
+  const saveMatchRun = React.useCallback(
+    async (x: StoredMatchRun) => {
+      if (ref.current) {
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`m-${x.analysisId}`).set({ kind: "match", value: JSON.parse(JSON.stringify(x)) });
+      } else {
+        setMatchRuns((cur) => {
+          const next = [x, ...cur.filter((c) => c.analysisId !== x.analysisId)];
+          persistLocal({ matches: next });
+          return next;
+        });
+      }
+    },
+    [persistLocal],
+  );
+
+  const saveSettings = React.useCallback(
+    async (x: Settings) => {
+      if (ref.current) {
+        setSettings(x);
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc("settings").set({ kind: "settings", value: { ...x } });
+      } else {
+        setSettings(x);
+        persistLocal({ settings: x });
+      }
+    },
+    [persistLocal],
   );
 
   const analyses = React.useMemo(() => [...own, ...EXAMPLES].sort(byDateDesc), [own]);
-  return { backend, stale, analyses, own, patterns, saveAnalysis, deleteAnalysis, savePattern, deletePattern };
+  return { backend, stale, analyses, own, patterns, matchRuns, settings, saveAnalysis, deleteAnalysis, savePattern, deletePattern, saveMatchRun, saveSettings };
 }
 
 export type Store = ReturnType<typeof useStore>;

@@ -53,6 +53,7 @@ import { Badge, Button, Card, Field, Modal, inputClass, type BadgeTone } from ".
 import { DistributionBar, MetaProgramScale, NeedsRadar, VakogLegend, repColorForLabel } from "./charts";
 import type { StoredAnalysis, StoredPattern } from "./store";
 import type { AppCtx } from "./app-ctx";
+import { ReportMatchPanel } from "./beliefs";
 
 const ICONS: Record<string, LucideIcon> = {
   sparkles: Sparkles,
@@ -605,6 +606,8 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
             </div>
           </div>
         </Card>
+
+        <ReportMatchPanel ctx={ctx} analysis={a} />
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">
           <aside className="hidden lg:block">

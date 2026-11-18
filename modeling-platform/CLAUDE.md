@@ -16,7 +16,7 @@ modeling-platform/                 pnpm-monorepo (Node ≥ 20, TypeScript strict
 │  ├─ src/analyzer/                analyzeTranscript(), coercion, typed fejl
 │  ├─ src/llm/                     Claude-klient, mock, rate-limiter, retry
 │  ├─ src/report/                  Rapportblokke → Markdown (markdown.ts) / PDF (pdf.tsx)
-│  ├─ src/insights/                VAKOG-leksikon, dashboard-aggregater, sammenligning, mønstre
+│  ├─ src/insights/                VAKOG-leksikon, dashboard-aggregater, sammenligning, mønstre, overbevisnings-match (belief-match.ts)
 │  ├─ src/transcription/           Whisper API · AssemblyAI · whisper.cpp · mock   (Node-only)
 │  ├─ src/media/                   ffmpeg: probe, udtræk/normalisér lyd, opdeling  (Node-only)
 │  └─ test/                        Vitest
@@ -48,6 +48,12 @@ Web og CLI kalder **præcis samme** `analyzeTranscript()` → identisk JSON-outp
    → (ved fejl: én reparationsrunde) → `normalizeResult()` (kategori-normalisering) → `AnalysisEnvelope`.
 3. Envelope (`{ schema_version, result, meta }`) gemmes (web: `analyses.result`) eller skrives som `*.analysis.json` (CLI).
 4. `buildReport(result)` → `ReportDocument` → `renderMarkdown()` / `renderPdf()` / web-komponenter.
+5. Overbevisnings-match (web: `server/belief-matches.ts`, startes af `jobs.ts` efter hver færdig analyse):
+   - `buildInventory()` samler den nye persons fund (P1, hele historikken) og alle andre personer (P2…) med id'er som `P2.E1`/`P1.D1`/`P1.V2`.
+   - `matchBeliefs()` → Claude: `SYSTEM_PROMPT` + `buildBeliefMatchMessage()` + structured output.
+   - `resolveMatches()` slår id'erne op lokalt og håndhæver reglerne. Det er den eneste vej fra modelsvar til gemte match.
+   - Ved fejl bruges `heuristicMatches()` (tekstbaseret); mock-provideren svarer også med den.
+   - Visning: `matchesForPerson()` deler op i ind/ud/fælles og fjerner dubletter på tværs af kørsler.
 
 ## Sådan kaldes analysen
 
@@ -93,6 +99,11 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 - Objekter (ikke komponenter) må ikke importeres fra `"use client"`-moduler ind i server components — de bliver proxies. Delte konstanter hører til i `@bm/core` eller ikke-client-moduler.
 - React-PDF 4.9: undgå arvet `lineHeight` på `Page` og dynamiske `render`-tekster i komponenter (sidetal forsvinder) — se kommentarer i `report/pdf-document.tsx`. `pdf-document.tsx` er browser-sikker (bruges af artifactet med indbyggede skrifter); `pdf.tsx` tilføjer Node-delen (skrifter fra disk, `renderPdf`).
 - UI: danske tekster, design-tokens i `apps/web/src/app/globals.css` og `apps/artifact/src/styles.css` (samme værdier, lys/mørk). Mørk navigations-skinne på køligt papir. Tre typografiske stemmer: personens egne ord = `.said` (Literata kursiv) + `.marked` (tusch), analysen = Schibsted Grotesk, notation = IBM Plex Mono. Diagramfarver `--series-1..8` i fast rækkefølge (V, A, K, O, G, Ad, eksperter 7-8), valideret for farveblindhed i begge temaer: ændres de, så kør valideringen igen.
+- Overbevisnings-match:
+  - Personer identificeres ved ekspert-id (web) eller navn (artifact/CLI).
+  - `experts.is_self` markerer brugeren selv; højst én pr. bruger.
+  - Begrænsende overbevisninger må kun optræde som "fælles", aldrig som noget, der gives videre.
+  - Mock-analysens overbevisninger/værdier vælges fra banker i `testing/mock-analysis.ts` ud fra, hvad personen faktisk siger, så demo-personerne har forskellige fund.
 - Tests: `pnpm test` (Vitest i core, web, cli). E2E: `pnpm e2e` (Playwright, kører i mock-mode).
 - Hemmeligheder kun via env. Commit aldrig `.env`.
 
@@ -102,12 +113,13 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 pnpm install
 cp .env.example .env            # sæt ANTHROPIC_API_KEY (eller LLM_PROVIDER=mock)
 pnpm db:migrate                 # opret/migrér databasen
-pnpm db:seed                    # demokonto demo@parresia.dk / demo1234 (mock-analyser)
+pnpm db:seed                    # demokonto demo@parresia.dk / demo1234 (mock-analyser, "Det er mig"-profil og match)
 pnpm dev                        # web på http://localhost:3000
 pnpm test                       # core + web-endpoints + CLI (Vitest)
 pnpm e2e                        # next build + Playwright end-to-end (mock)
 pnpm typecheck
 pnpm cli analyze examples/interview-mette.txt --mock   # CLI fra kildekoden
+pnpm cli match a.analysis.json b.analysis.json --mock   # overbevisnings-match begge veje
 pnpm artifact:build            # Claude Artifact-udgaven → apps/artifact/dist/parresia-modeling.html
 ```
 

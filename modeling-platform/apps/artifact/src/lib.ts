@@ -18,6 +18,23 @@ export { aggregateDashboard, type AnalysisRecord, type DashboardData } from "../
 export { compareAnalyses, type ComparisonData } from "../../../packages/core/src/insights/compare";
 export { suggestPatterns, type PatternSuggestion } from "../../../packages/core/src/insights/patterns";
 export { countVakogPredicates, type LexiconCounts } from "../../../packages/core/src/insights/vakog-lexicon";
+export {
+  ANCHOR_TYPE_LABEL,
+  BeliefMatchResponseSchema,
+  MATCH_KIND_LABEL,
+  buildInventory,
+  genitive,
+  heuristicMatches,
+  matchesForPerson,
+  resolveMatches,
+  type BeliefInventory,
+  type BeliefMatch,
+  type MatchKind,
+  type MatchSource,
+  type PersonRecord,
+} from "../../../packages/core/src/insights/belief-match";
+export { buildBeliefMatchMessage } from "../../../packages/core/src/prompt/build-belief-match-message";
+export { BELIEF_TYPE_LABEL } from "../../../packages/core/src/categories/beliefs";
 export { generateMockAnalysis } from "../../../packages/core/src/testing/mock-analysis";
 export { SAMPLE_TRANSCRIPT } from "../../../packages/core/src/testing/sample-transcript";
 export { DEMO_TRANSCRIPTS } from "../../../packages/core/src/testing/demo-transcripts";

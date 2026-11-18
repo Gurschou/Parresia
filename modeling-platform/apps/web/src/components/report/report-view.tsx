@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { formatDate, formatNumber } from "@/lib/format";
 import { AnalysisActions } from "@/components/analysis/analysis-actions";
+import { AnalysisMatchPanel } from "@/components/beliefs/analysis-match-panel";
 import { CategoryIcon } from "./category-icon";
 import { DistributionBar, MetaProgramScale, NeedsRadar, VakogLegend } from "./overview-charts";
 import { ReportBlocks } from "./report-blocks";
@@ -170,6 +171,9 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
             </div>
           </div>
         </Card>
+
+        {/* Overbevisnings-match mod resten af biblioteket */}
+        <AnalysisMatchPanel userId={analysis.ownerId} analysisId={analysis.id} />
 
         {/* Sektioner */}
         <div className="mt-10 grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">

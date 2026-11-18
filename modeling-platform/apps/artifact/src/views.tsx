@@ -10,6 +10,7 @@ import {
   Library,
   Link2,
   Loader2,
+  Puzzle,
   ShieldAlert,
   ShieldCheck,
   Sparkles,
@@ -52,6 +53,7 @@ import { CategoryIcon, Quote } from "./report";
 import { MAX_TRANSCRIPT_CHARS, analyzeDemo, analyzeWithClaude, sampleErrorMessage, type AnalyzeProgress } from "./analyze";
 import type { AppCtx } from "./app-ctx";
 import type { StoredAnalysis } from "./store";
+import { OverviewMatchCard, SelfToggle } from "./beliefs";
 
 const toRecord = (a: StoredAnalysis): AnalysisRecord => ({
   id: a.id,
@@ -240,6 +242,7 @@ export function Overview({ ctx }: { ctx: AppCtx }) {
             </ul>
           </section>
           <div className="flex min-w-0 flex-col gap-8">
+            <OverviewMatchCard ctx={ctx} />
             <section>
               <h2 className="mb-3 text-xl">Samlet VAKOG-profil</h2>
               <div className="card p-5">
@@ -352,6 +355,8 @@ export function NewAnalysis({ ctx }: { ctx: AppCtx }) {
       await ctx.store.saveAnalysis(record);
       ctx.toast("Analysen er færdig", "positive");
       location.hash = `analyse-${id}`;
+      // Overbevisnings-match mod hele biblioteket (kører videre i baggrunden).
+      void ctx.runMatch(record, [record, ...ctx.store.analyses.filter((x) => x.id !== record.id)], mode === "claude" && !!ctx.sample);
     } catch (e) {
       if ((e as { code?: string })?.code !== "cancelled") setError(sampleErrorMessage(e));
     } finally {
@@ -631,17 +636,23 @@ export function ExpertProfile({ ctx, expertSlug, setSelected }: { ctx: AppCtx; e
               </p>
             </div>
           </div>
-          {list.length >= 2 && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                setSelected(list.slice(0, 4).map((a) => a.id));
-                location.hash = "sammenlign";
-              }}
-            >
-              <Columns3 /> Sammenlign sessioner
-            </Button>
-          )}
+          <div className="flex flex-wrap gap-2">
+            <SelfToggle ctx={ctx} name={name} />
+            <LinkButton href={`#match-${expertSlug}`} variant="outline">
+              <Puzzle /> Overbevisnings-match
+            </LinkButton>
+            {list.length >= 2 && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelected(list.slice(0, 4).map((a) => a.id));
+                  location.hash = "sammenlign";
+                }}
+              >
+                <Columns3 /> Sammenlign sessioner
+              </Button>
+            )}
+          </div>
         </div>
       </section>
       <Container>

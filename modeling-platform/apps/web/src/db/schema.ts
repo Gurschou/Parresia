@@ -1,4 +1,4 @@
-import { date, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
+import { boolean, date, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
 import type { AnalysisContext, AnalysisMeta, AnalysisResult } from "@bm/core";
 
 const id = () =>
@@ -41,6 +41,8 @@ export const experts = pgTable(
     name: text("name").notNull(),
     role: text("role").notNull().default(""),
     description: text("description").notNull().default(""),
+    /** Brugeren selv ("Det er mig") — overbevisnings-match vises som "passer til dig". */
+    isSelf: boolean("is_self").notNull().default(false),
     createdAt: createdAt(),
   },
   (t) => [index("experts_owner_idx").on(t.ownerId)],
@@ -139,9 +141,78 @@ export const patternExamples = pgTable(
   (t) => [index("pattern_examples_pattern_idx").on(t.patternId)],
 );
 
+export const MATCH_RUN_STATUSES = ["pending", "running", "done", "failed"] as const;
+export type MatchRunStatus = (typeof MATCH_RUN_STATUSES)[number];
+
+/**
+ * Én overbevisnings-match-kørsel pr. analyse: kører automatisk, når analysen
+ * er færdig, og matcher personens overbevisninger mod alle andre personer.
+ */
+export const beliefMatchRuns = pgTable("belief_match_runs", {
+  analysisId: text("analysis_id")
+    .primaryKey()
+    .references(() => analyses.id, { onDelete: "cascade" }),
+  ownerId: text("owner_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  status: text("status", { enum: MATCH_RUN_STATUSES }).notNull().default("pending"),
+  source: text("source", { enum: ["claude", "heuristic"] }),
+  summary: text("summary").notNull().default(""),
+  /** Fx hvorfor den tekstbaserede match blev brugt i stedet for Claude. */
+  note: text("note").notNull().default(""),
+  personCount: integer("person_count").notNull().default(0),
+  model: text("model"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * Et match: en overbevisning fra én person (fra-analysen), der passer til en
+ * anden person (til-analysen). Personerne slås op via analyserne ved læsning,
+ * så flytning af en analyse til en anden ekspert slår igennem.
+ */
+export const beliefMatches = pgTable(
+  "belief_matches",
+  {
+    id: id(),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    runAnalysisId: text("run_analysis_id")
+      .notNull()
+      .references(() => analyses.id, { onDelete: "cascade" }),
+    fromAnalysisId: text("from_analysis_id")
+      .notNull()
+      .references(() => analyses.id, { onDelete: "cascade" }),
+    toAnalysisId: text("to_analysis_id")
+      .notNull()
+      .references(() => analyses.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["shared", "counter", "fit"] }).notNull(),
+    fit: integer("fit").notNull(),
+    beliefKind: text("belief_kind", { enum: ["enabling", "disenabling"] }).notNull(),
+    beliefType: text("belief_type").notNull(),
+    statement: text("statement").notNull(),
+    impact: text("impact").notNull().default(""),
+    quote: text("quote").notNull().default(""),
+    anchorType: text("anchor_type").notNull().default("none"),
+    anchorText: text("anchor_text").notNull().default(""),
+    rationale: text("rationale").notNull().default(""),
+    bridgeQuestion: text("bridge_question").notNull().default(""),
+    source: text("source", { enum: ["claude", "heuristic"] }).notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index("belief_matches_owner_idx").on(t.ownerId),
+    index("belief_matches_run_idx").on(t.runAnalysisId),
+    index("belief_matches_from_idx").on(t.fromAnalysisId),
+    index("belief_matches_to_idx").on(t.toAnalysisId),
+  ],
+);
+
 export type User = typeof users.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Expert = typeof experts.$inferSelect;
 export type Analysis = typeof analyses.$inferSelect;
 export type Pattern = typeof patterns.$inferSelect;
 export type PatternExample = typeof patternExamples.$inferSelect;
+export type BeliefMatchRow = typeof beliefMatches.$inferSelect;
+export type BeliefMatchRunRow = typeof beliefMatchRuns.$inferSelect;

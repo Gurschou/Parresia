@@ -22,6 +22,11 @@ import * as compareRoute from "@/app/api/compare/route";
 import * as dashboardRoute from "@/app/api/dashboard/route";
 import * as uploadsRoute from "@/app/api/uploads/route";
 import * as healthRoute from "@/app/api/health/route";
+import * as expertRoute from "@/app/api/experts/[id]/route";
+import * as matchesRoute from "@/app/api/analyses/[id]/matches/route";
+import * as beliefsRoute from "@/app/api/beliefs/route";
+import * as backfillRoute from "@/app/api/beliefs/backfill/route";
+import { DEMO_TRANSCRIPTS, SELF_DEMO_TRANSCRIPT } from "@bm/core/demo";
 
 const BASE = "http://test.local";
 const json = (path: string, body: unknown, method = "POST") =>
@@ -265,5 +270,113 @@ describe("analyse-flow", () => {
     const db = await getDb();
     const examples = await db.select().from(schema.patternExamples);
     expect(examples.every((e) => e.analysisId !== analysisId)).toBe(true);
+  });
+});
+
+describe("overbevisnings-match", () => {
+  let carol: { id: string; name: string; email: string };
+  const experts: Record<string, string> = {};
+  const analyses: Record<string, string> = {};
+
+  async function waitForMatch(id: string, timeoutMs = 30_000) {
+    const t0 = Date.now();
+    for (;;) {
+      const body = await (await matchesRoute.GET(get(`/api/analyses/${id}/matches`), ctx(id))).json();
+      if (body.run && (body.run.status === "done" || body.run.status === "failed")) return body;
+      if (Date.now() - t0 > timeoutMs) throw new Error(`timeout; match-status ${body.run?.status}`);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  async function analyse(name: string, transcript: string) {
+    const res = await analysesRoute.POST(json("/api/analyses", { transcript, expertId: experts[name] }), undefined);
+    expect(res.status).toBe(202);
+    const id = (await res.json()).id as string;
+    expect((await waitForStatus(id, ["completed", "failed"])).status).toBe("completed");
+    analyses[name] = id;
+    return waitForMatch(id);
+  }
+
+  it("matcher automatisk hver ny analyse mod alle andre — begge veje", async () => {
+    carol = await createUser("carol@example.com");
+    loginAs(carol);
+    for (const [name, role, isSelf] of [["Mig", "Coach", true], ["Jonas Krag", "Elitesvømmer", false], ["Sara Lund", "Iværksætter", false]] as const) {
+      const res = await expertsRoute.POST(json("/api/experts", { name, role, isSelf }), undefined);
+      expect(res.status).toBe(201);
+      experts[name] = (await res.json()).id;
+    }
+
+    // Første person: ingen andre at matche med endnu.
+    const first = await analyse("Jonas Krag", DEMO_TRANSCRIPTS.find((t) => t.expert === "Jonas Krag")!.transcript);
+    expect(first.run).toMatchObject({ status: "done", personCount: 0, source: "heuristic" });
+    expect(first.incoming).toEqual([]);
+
+    // Sara kommer ind: Jonas' "én ting ad gangen" er en modvægt til hendes begrænsning.
+    const sara = await analyse("Sara Lund", DEMO_TRANSCRIPTS.find((t) => t.expert === "Sara Lund")!.transcript);
+    expect(sara.run.personCount).toBe(1);
+    const counter = sara.incoming.find((m: { kind: string }) => m.kind === "counter");
+    expect(counter).toMatchObject({ belief: { statement: "Én ting ad gangen gør mig bedre." }, from: { name: "Jonas Krag" }, to: { name: "Sara Lund" } });
+    expect(sara.outgoing.length).toBeGreaterThan(0);
+    expect(sara.outgoing.every((m: { to: { name: string } }) => m.to.name === "Jonas Krag")).toBe(true);
+
+    // Brugeren selv kommer ind: begge eksperter har noget, der passer.
+    const me = await analyse("Mig", SELF_DEMO_TRANSCRIPT.transcript);
+    expect(me.person).toMatchObject({ name: "Mig", isSelf: true });
+    expect(me.run.personCount).toBe(2);
+    const fromNames = new Set(me.incoming.map((m: { from: { name: string } }) => m.from.name));
+    expect(fromNames).toEqual(new Set(["Jonas Krag", "Sara Lund"]));
+    expect(me.incoming.some((m: { kind: string; anchor: { text: string } }) => m.kind === "counter" && /styr på det hele/.test(m.anchor.text))).toBe(true);
+  });
+
+  it("samlet visning vælger dig selv som standard og kan skifte person", async () => {
+    loginAs(carol);
+    const view = await (await beliefsRoute.GET(get("/api/beliefs"), undefined)).json();
+    expect(view.selected).toMatchObject({ name: "Mig", isSelf: true });
+    expect(view.persons.map((p: { name: string }) => p.name)[0]).toBe("Mig");
+    expect(view.persons).toHaveLength(3);
+    expect(view.incoming.length).toBeGreaterThan(0);
+    expect(view.activeRuns).toBe(0);
+    expect(view.unmatchedAnalyses).toBe(0);
+
+    const sara = await (await beliefsRoute.GET(get(`/api/beliefs?person=${experts["Sara Lund"]}`), undefined)).json();
+    expect(sara.selected.name).toBe("Sara Lund");
+    // Saras match fra både hendes egen kørsel og de senere (Mig) er med.
+    expect(sara.incoming.length + sara.outgoing.length + sara.shared.length).toBeGreaterThan(sara.incoming.length);
+    expect(sara.outgoing.some((m: { to: { name: string } }) => m.to.name === "Mig")).toBe(true);
+  });
+
+  it("kun én 'det er mig' pr. bruger, og PATCH rører ikke andre felter", async () => {
+    loginAs(carol);
+    const res = await expertRoute.PATCH(json(`/api/experts/${experts["Sara Lund"]}`, { isSelf: true }, "PATCH"), ctx(experts["Sara Lund"]!));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ isSelf: true, role: "Iværksætter", name: "Sara Lund" });
+    const list = (await (await expertsRoute.GET(get("/api/experts"), undefined)).json()).items as { name: string; isSelf: boolean }[];
+    expect(list.filter((e) => e.isSelf).map((e) => e.name)).toEqual(["Sara Lund"]);
+    await expertRoute.PATCH(json(`/api/experts/${experts["Mig"]}`, { isSelf: true }, "PATCH"), ctx(experts["Mig"]!));
+  });
+
+  it("andre brugere kan hverken se eller køre match (404)", async () => {
+    loginAs(bob);
+    const id = analyses["Mig"]!;
+    expect((await matchesRoute.GET(get(`/api/analyses/${id}/matches`), ctx(id))).status).toBe(404);
+    expect((await matchesRoute.POST(json(`/api/analyses/${id}/matches`, {}), ctx(id))).status).toBe(404);
+    const view = await (await beliefsRoute.GET(get("/api/beliefs"), undefined)).json();
+    expect(view.persons.some((p: { name: string }) => p.name === "Mig" || p.name === "Jonas Krag")).toBe(false);
+  });
+
+  it("kan køre igen og matche analyser, der mangler et match", async () => {
+    loginAs(carol);
+    const id = analyses["Jonas Krag"]!;
+    expect((await matchesRoute.POST(json(`/api/analyses/${id}/matches`, {}), ctx(id))).status).toBe(202);
+    const again = await waitForMatch(id);
+    // Nu er der to andre personer i biblioteket.
+    expect(again.run.personCount).toBe(2);
+
+    const db = await getDb();
+    const { eq } = await import("drizzle-orm");
+    await db.delete(schema.beliefMatchRuns).where(eq(schema.beliefMatchRuns.analysisId, analyses["Sara Lund"]!));
+    const res = await backfillRoute.POST(json("/api/beliefs/backfill", {}), undefined);
+    expect(res.status).toBe(202);
+    expect((await res.json()).queued).toBe(1);
+    expect((await waitForMatch(analyses["Sara Lund"]!)).run.status).toBe("done");
   });
 });

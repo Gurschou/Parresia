@@ -16,6 +16,7 @@ import {
   Monitor,
   Moon,
   Plus,
+  Puzzle,
   Sun,
   Users,
 } from "lucide-react";
@@ -37,6 +38,7 @@ export const NAV = [
   { href: "/analyses", label: "Analyser", icon: FileText },
   { href: "/experts", label: "Eksperter", icon: Users },
   { href: "/compare", label: "Sammenlign", icon: Columns3 },
+  { href: "/beliefs", label: "Overbevisnings-match", icon: Puzzle },
   { href: "/patterns", label: "Mønsterbibliotek", icon: Library },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },
 ] as const;

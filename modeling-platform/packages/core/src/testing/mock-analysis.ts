@@ -2,6 +2,7 @@ import type { AnalysisResult } from "../categories/registry";
 import { META_PROGRAM_IDS, type MetaProgramId } from "../categories/meta-programs";
 import { HUMAN_NEEDS, REP_SYSTEMS, type HumanNeedKey, type RepSystem } from "../schema/common";
 import { countVakogPredicates } from "../insights/vakog-lexicon";
+import { NEED_WORDS as NEED_WORDS_LEXICON } from "../insights/need-lexicon";
 import { HUMAN_NEED_LABEL } from "../schema/labels";
 import type { AnalysisContext } from "../prompt/build-user-message";
 
@@ -14,7 +15,7 @@ import type { AnalysisContext } from "../prompt/build-user-message";
 
 const SPEAKER_RE = /^\s*([\p{L} .'-]{1,40}):\s*/u;
 
-function subjectSentences(transcript: string): { speaker: string | null; sentences: string[] } {
+function subjectSentences(transcript: string): { speaker: string | null; sentences: string[]; all: string[] } {
   const lines = transcript.split(/\n+/).filter((l) => l.trim());
   const speakers = new Map<string, number>();
   for (const l of lines) {
@@ -31,12 +32,13 @@ function subjectSentences(transcript: string): { speaker: string | null; sentenc
     })
     .map((l) => l.replace(SPEAKER_RE, ""))
     .join(" ");
-  const sentences = subjectText
+  const all = subjectText
     .replace(/\[[^\]]*\]/g, "")
     .split(/(?<=[.!?])\s+/)
     .map((s) => s.trim())
-    .filter((s) => s.length > 25 && s.length < 260);
-  return { speaker: subject, sentences: sentences.length ? sentences : [transcript.slice(0, 200).trim()] };
+    .filter((s) => s.length > 10 && s.length < 260);
+  const sentences = all.filter((s) => s.length > 25);
+  return { speaker: subject, sentences: sentences.length ? sentences : [transcript.slice(0, 200).trim()], all };
 }
 
 function hash(s: string): number {
@@ -48,24 +50,129 @@ function hash(s: string): number {
 const count = (text: string, words: string[]) =>
   words.reduce((a, w) => a + (text.match(new RegExp(`\\b${w}`, "giu"))?.length ?? 0), 0);
 
-const NEED_WORDS: Record<HumanNeedKey, string[]> = {
-  certainty: ["sikker", "kontrol", "plan", "forbered", "tjekliste", "regel", "ro", "certain", "control", "plan"],
-  variety: ["ny", "nyt", "eventyr", "forandring", "anderledes", "spænd", "new", "change", "adventure"],
-  significance: ["bedst", "vinde", "vinder", "anerkend", "stolt", "først", "listen", "best", "win", "proud"],
-  love_connection: ["forbindelse", "team", "familie", "sammen", "forstå", "kunde", "connect", "together", "family"],
-  growth: ["lær", "udvikl", "bedre", "mønstre", "vokse", "learn", "grow", "improve", "better"],
-  contribution: ["hjælp", "give", "bidrag", "brug for", "andre", "help", "give", "contribut"],
-};
+const NEED_WORDS = NEED_WORDS_LEXICON;
+
+type BeliefType = AnalysisResult["enabling_beliefs"]["beliefs"][number]["belief_type"];
+
+/**
+ * Mock-banker: overbevisninger og værdier vælges ud fra, hvad personen faktisk
+ * siger (mønstre matches mod personens egne sætninger, og citatet ER den
+ * sætning). Så får demo-personerne forskellige — og delvist fælles — fund, og
+ * overbevisnings-matchet har noget at arbejde med. Varianter med samme `impact`
+ * er "samme" overbevisning formuleret forskelligt.
+ */
+const ENABLING_BANK: { patterns: { re: RegExp; statement: string }[]; type: BeliefType; impact: string }[] = [
+  { patterns: [{ re: /forbereder mig/, statement: "Jeg er en person, der forbereder mig mere end andre." }], type: "identity", impact: "Gør grundighed til en del af identiteten og giver ro og selvtillid i pressede situationer." },
+  {
+    patterns: [
+      { re: /et nej er bare information/, statement: "Et nej er bare information." },
+      { re: /et tab er bare feedback/, statement: "Et tab er bare feedback." },
+      { re: /fejl er bare information/, statement: "Fejl er bare information om, hvor jeg skal hen." },
+    ],
+    type: "complex_equivalence",
+    impact: "Afkobler nederlag fra identiteten og holder læringsløkken åben, så presset falder.",
+  },
+  {
+    patterns: [
+      { re: /bygge folk/, statement: "Mit job er at bygge folk, ikke at være den bedste." },
+      { re: /folk kan vokse/, statement: "Jeg bygger noget, hvor folk kan vokse." },
+    ],
+    type: "identity",
+    impact: "Flytter fokus fra egen præstation til andres vækst, så teamet vokser, og ansvaret kan deles.",
+  },
+  { patterns: [{ re: /kan de også/, statement: "Hvis jeg kan, kan andre også." }], type: "possibility", impact: "Gør egne resultater til bevis for andre og giver præstationen mening ud over en selv." },
+  { patterns: [{ re: /lidt bedre|måler alt/, statement: "Jeg bliver lidt bedre hver dag, når jeg måler det." }], type: "capability", impact: "Gør fremgang synlig og holder motivationen oppe, også når resultaterne svinger." },
+  { patterns: [{ re: /god beslutning i dag|venter ikke/, statement: "En god beslutning i dag er bedre end en perfekt beslutning om en måned." }], type: "cause_effect", impact: "Holder tempoet højt og gør usikkerhed til noget, man kan handle i." },
+  { patterns: [{ re: /leve med det værste/, statement: "Hvis jeg kan leve med det værste, kan jeg handle." }], type: "possibility", impact: "Gør frygten håndterbar og giver ro til at træffe store beslutninger under pres." },
+  { patterns: [{ re: /kroppen føles let|føl under løbet/, statement: "Når kroppen føles let, er jeg klar." }], type: "cause_effect", impact: "Giver et klart indre signal, så tvivl og pres ikke styrer præstationen." },
+  { patterns: [{ re: /én ting/, statement: "Én ting ad gangen gør mig bedre." }], type: "cause_effect", impact: "Holder fokus skarpt og gør forbedring overskuelig i stedet for overvældende." },
+  { patterns: [{ re: /set ham gøre|set resultaterne/, statement: "Jeg tror på det, når jeg har set det virke." }], type: "about_world", impact: "Gør tillid til noget, der kan bygges op skridt for skridt, så ansvar kan slippes." },
+];
+
+const DISENABLING_BANK: { re: RegExp; statement: string; type: BeliefType; impact: string; cost: string; reframe: string }[] = [
+  {
+    re: /gør det selv/,
+    statement: "Hvis jeg ikke gør det selv, bliver det ikke godt nok.",
+    type: "cause_effect",
+    impact: "Begrænser uddelegering og teamets vækst.",
+    cost: "Aftener, weekender og et team, der ikke får lov at vokse.",
+    reframe: "Hvornår har en anden gjort noget lige så godt — eller bedre — end du ville have gjort det?",
+  },
+  {
+    re: /skuffe|pres i brystet/,
+    statement: "Hvis jeg skuffer andre, er jeg ikke god nok.",
+    type: "identity",
+    impact: "Gør nederlag til et spørgsmål om identitet og skaber pres før store præstationer.",
+    cost: "Pres i brystet og dårlig søvn før store stævner.",
+    reframe: "Hvad ville du sige til en ung i klubben, der var bange for at skuffe dig?",
+  },
+  {
+    re: /går jeg glip|sige nej til/,
+    statement: "Hvis jeg siger nej, går jeg glip af noget stort.",
+    type: "cause_effect",
+    impact: "Gør det svært at prioritere og spreder energien over for mange muligheder.",
+    cost: "Fokus — for mange projekter på én gang.",
+    reframe: "Hvad har du fået, de gange du sagde nej til noget godt for at sige ja til noget bedre?",
+  },
+  {
+    re: /styr på det hele/,
+    statement: "Jeg skal have styr på det hele, før jeg må sige ja.",
+    type: "cause_effect",
+    impact: "Udskyder hver beslutning, indtil alt er perfekt, og gør usikkerhed til en stopklods.",
+    cost: "Muligheder, der lukker sig, mens jeg venter.",
+    reframe: "Hvad er det mindste ja, du kunne sige i dag uden at have styr på det hele?",
+  },
+  {
+    re: /fejl foran/,
+    statement: "Hvis jeg laver fejl foran en klient, er jeg ikke god nok.",
+    type: "identity",
+    impact: "Gør hvert nederlag til et spørgsmål om identiteten og øger presset før sessioner.",
+    cost: "Pres i maven og nye metoder, jeg ikke tør afprøve.",
+    reframe: "Hvad har dine klienter lært af at se dig håndtere en fejl?",
+  },
+];
+
+const VALUE_BANK: { re: RegExp; value: string; direction: "toward" | "away_from"; rule: string }[] = [
+  { re: /forbered/, value: "Forberedelse", direction: "toward", rule: "For at føle mig klar skal jeg have set det for mig og mærket, at det er rigtigt." },
+  { re: /frihed/, value: "Frihed", direction: "toward", rule: "" },
+  { re: /bedre|lære|udvikl/, value: "Udvikling", direction: "toward", rule: "Jeg er på rette vej, når jeg kan se, at jeg er blevet bedre end i går." },
+  { re: /hjælpe|hjælper|vise de unge|bygge folk/, value: "Bidrag", direction: "toward", rule: "" },
+  { re: /forstå|kunde|forbindelse|team/, value: "Forbindelse", direction: "toward", rule: "" },
+  { re: /rolig|\bro\b/, value: "Ro", direction: "toward", rule: "" },
+  { re: /skuffe/, value: "At skuffe andre", direction: "away_from", rule: "" },
+  { re: /fiasko|går jeg glip/, value: "At gå glip af noget", direction: "away_from", rule: "" },
+];
 
 const pick = <T>(xs: T[], i: number): T => xs[((i % xs.length) + xs.length) % xs.length]!;
 
 export function generateMockAnalysis(transcript: string, context: AnalysisContext = {}): AnalysisResult {
-  const { speaker, sentences } = subjectSentences(transcript);
+  const { speaker, sentences, all } = subjectSentences(transcript);
   const seed = hash(transcript);
   const q = (i: number) => pick(sentences, seed + i * 7);
   const lower = transcript.toLowerCase();
   const subject = context.subjectName || speaker || "Ukendt person";
   const lex = countVakogPredicates(transcript);
+  const said = (re: RegExp) => all.find((x) => re.test(x.toLowerCase()));
+
+  const enabling = ENABLING_BANK.flatMap((b) => {
+    for (const p of b.patterns) {
+      const quote = said(p.re);
+      if (quote) return [{ statement: p.statement, belief_type: b.type, impact: b.impact, quotes: [quote], evidence_type: "quote" as const, confidence: "medium" as const }];
+    }
+    return [];
+  }).slice(0, 5);
+  const disenabling = DISENABLING_BANK.flatMap((b) => {
+    const quote = said(b.re);
+    return quote
+      ? [{ statement: b.statement, belief_type: b.type, impact: b.impact, quotes: [quote], evidence_type: "quote" as const, confidence: "medium" as const, cost: b.cost, reframe_question: b.reframe }]
+      : [];
+  });
+  const values = VALUE_BANK.flatMap((v) => {
+    const quote = said(v.re);
+    return quote ? [{ value: v.value, direction: v.direction, rule: v.rule, quote }] : [];
+  })
+    .slice(0, 4)
+    .map((v, i) => ({ value: v.value, direction: v.direction, rank: i + 1, rule: v.rule, quotes: [v.quote], evidence_type: "quote" as const, confidence: "medium" as const }));
 
   const ranked = [...REP_SYSTEMS].sort((a, b) => lex.distribution[b] - lex.distribution[a]);
   const primary: RepSystem = lex.total > 0 ? ranked[0]! : "K";
@@ -171,45 +278,35 @@ export function generateMockAnalysis(transcript: string, context: AnalysisContex
       observations: "Strategierne har et tydeligt kinæstetisk eller logisk exit-punkt. (Mock)",
     },
     enabling_beliefs: {
-      beliefs: [
-        {
-          statement: "Jeg er en person, der forbereder mig mere end andre.",
-          belief_type: "identity",
-          impact: "Skaber en vane med grundighed, som giver selvtillid i pressede situationer.",
-          quotes: [q(6)],
-          evidence_type: "quote",
-          confidence: "high",
-        },
-        {
-          statement: "Et nej er bare information.",
-          belief_type: "complex_equivalence",
-          impact: "Afkobler nederlag fra identitet og holder motivationen oppe.",
-          quotes: [q(7)],
-          evidence_type: "quote",
-          confidence: "medium",
-        },
-      ],
+      beliefs: enabling.length
+        ? enabling
+        : [
+            {
+              statement: "Jeg er en person, der forbereder mig mere end andre.",
+              belief_type: "identity",
+              impact: "Skaber en vane med grundighed, som giver selvtillid i pressede situationer.",
+              quotes: [q(6)],
+              evidence_type: "inference",
+              confidence: "low",
+            },
+            {
+              statement: "Et nej er bare information.",
+              belief_type: "complex_equivalence",
+              impact: "Afkobler nederlag fra identitet og holder motivationen oppe.",
+              quotes: [q(7)],
+              evidence_type: "inference",
+              confidence: "low",
+            },
+          ],
     },
-    disenabling_beliefs: {
-      beliefs: [
-        {
-          statement: "Hvis jeg ikke gør det selv, bliver det ikke godt nok.",
-          belief_type: "cause_effect",
-          impact: "Begrænser uddelegering og teamets vækst.",
-          quotes: [q(8)],
-          evidence_type: "quote",
-          confidence: "medium",
-          cost: "Aftener, weekender og et team, der ikke får lov at vokse.",
-          reframe_question: "Hvornår har en anden gjort noget lige så godt — eller bedre — end du ville have gjort det?",
-        },
-      ],
-    },
+    disenabling_beliefs: { beliefs: disenabling },
     values_and_6_human_needs: {
-      values: [
-        { value: "Forberedelse", direction: "toward", rank: 1, rule: "For at føle mig klar skal jeg have set det for mig og mærket, at det er rigtigt.", quotes: [q(9)], evidence_type: "quote", confidence: "medium" },
-        { value: "Forbindelse", direction: "toward", rank: 2, rule: "", quotes: [q(10)], evidence_type: "inference", confidence: "low" },
-        { value: "Fiasko pga. manglende forberedelse", direction: "away_from", rank: 3, rule: "", quotes: [q(11)], evidence_type: "inference", confidence: "low" },
-      ],
+      values: values.length
+        ? values
+        : [
+            { value: "Forberedelse", direction: "toward", rank: 1, rule: "For at føle mig klar skal jeg have set det for mig og mærket, at det er rigtigt.", quotes: [q(9)], evidence_type: "inference", confidence: "low" },
+            { value: "Forbindelse", direction: "toward", rank: 2, rule: "", quotes: [q(10)], evidence_type: "inference", confidence: "low" },
+          ],
       human_needs: Object.fromEntries(
         HUMAN_NEEDS.map((n, i) => [
           n,

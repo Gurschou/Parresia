@@ -13,8 +13,16 @@ import {
   MockLlmClient,
   REP_SYSTEMS,
   REP_SYSTEM_LABEL,
+  MATCH_KIND_LABEL,
   analyzeTranscript,
+  buildInventory,
   buildReport,
+  genitive,
+  matchBeliefs,
+  matchesForPerson,
+  personKeyOf,
+  type BeliefMatch,
+  type PersonRecord,
   loadConfig,
   metaProgramPoleLabel,
   renderMarkdown,
@@ -267,6 +275,63 @@ export function buildProgram(io: Io = defaultIo): Command {
       const base = outBase(path.resolve(file).replace(/\.analysis\.json$/, ".json"), o.out);
       const written = await writeOutputs({ ...envelope, result: v.result }, base, parseFormats(o.format).filter((f) => f !== "json"), { expertName: o.expert });
       written.forEach((w) => io.out(`${pc.green("✔")} ${w}`));
+    });
+
+  program
+    .command("match")
+    .description("Find overbevisninger, der passer mellem personen i den første analyse og personerne i de andre — begge veje")
+    .argument("<target>", "analysen, der matches (*.analysis.json)")
+    .argument("<others...>", "andre analyser at matche mod (én eller flere personer)")
+    .option("--mock", "brug mock-LLM (ingen API-nøgle, til test)")
+    .option("--offline", "kun tekstbaseret match (intet LLM-kald)")
+    .option("--json", "skriv matchet som JSON til stdout")
+    .action(async (targetFile: string, otherFiles: string[], o) => {
+      const load = async (file: string, order: number): Promise<PersonRecord> => {
+        let raw: unknown;
+        try {
+          raw = JSON.parse(await readFile(path.resolve(file), "utf8"));
+        } catch {
+          throw new CliError(`${file} er ikke gyldig JSON.`, 2);
+        }
+        const v = validateAnalysis(raw);
+        if (!v.ok) throw new CliError(`${file} er ikke en gyldig analyse:\n${v.issues}`, 2);
+        return { id: path.resolve(file), title: path.basename(file), createdAt: new Date(order), expertName: v.result.summary.subject, result: v.result };
+      };
+      const target = await load(targetFile, otherFiles.length + 1);
+      const others = await Promise.all(otherFiles.map((f, i) => load(f, i)));
+      const key = personKeyOf(target);
+      const inventory = buildInventory(
+        { analysisId: target.id, records: [target, ...others.filter((r) => personKeyOf(r) === key)] },
+        others.filter((r) => personKeyOf(r) !== key),
+      );
+      if (inventory.persons.length < 2) throw new CliError("De andre analyser er af samme person — angiv mindst én analyse af en anden person.", 2);
+
+      const spin = spinner(io, `Matcher ${genitive(inventory.persons[0]!.name)} overbevisninger mod ${inventory.persons.length - 1} ${inventory.persons.length === 2 ? "person" : "personer"}`);
+      const run = await matchBeliefs(inventory, { llm: o.mock ? new MockLlmClient({ delayMs: 0 }) : undefined, useLlm: !o.offline });
+      spin.succeed(`Match færdigt (${run.source === "claude" ? "Claude" : "tekstbaseret"}): ${run.matches.length} match`);
+      if (run.meta.fallback_reason) io.err(pc.yellow(`  Claude kunne ikke svare (${run.meta.fallback_reason}); tekstbaseret match brugt.`));
+      if (o.json) {
+        io.out(JSON.stringify(run, null, 2));
+        return;
+      }
+      const name = inventory.persons[0]!.name;
+      const g = matchesForPerson(run.matches, key);
+      const line = (m: BeliefMatch, side: "from" | "to") => {
+        io.out(`  ${pc.bold(`[${MATCH_KIND_LABEL[m.kind]} ${m.fit}]`)} “${m.belief.statement}” ${pc.dim(`— ${side === "from" ? "fra" : "til"} ${m[side].name}`)}`);
+        if (m.anchor.text) io.out(`    ${pc.dim("→")} ${pc.dim(m.anchor.text)}`);
+        if (m.rationale) io.out(`    ${pc.dim(m.rationale)}`);
+        if (m.bridgeQuestion) io.out(`    ${pc.cyan("?")} ${m.bridgeQuestion}`);
+      };
+      if (run.summary) io.out(`\n${run.summary}`);
+      io.out(`\n${pc.bold(pc.magenta(`Passer til ${name}`))}`);
+      g.incoming.forEach((m) => line(m, "from"));
+      if (!g.incoming.length) io.out(pc.dim("  Ingen tydelige match."));
+      io.out(`\n${pc.bold(pc.magenta(`${genitive(name)} overbevisninger, der passer til andre`))}`);
+      g.outgoing.forEach((m) => line(m, "to"));
+      if (!g.outgoing.length) io.out(pc.dim("  Ingen tydelige match."));
+      io.out(`\n${pc.bold(pc.magenta("Fælles"))}`);
+      g.shared.forEach((m) => io.out(`  ≈ “${m.belief.statement}” ${pc.dim(`(${m.from.name})`)} · “${m.anchor.text}” ${pc.dim(`(${m.to.name})`)}`));
+      if (!g.shared.length) io.out(pc.dim("  Ingen fælles overbevisninger."));
     });
 
   program

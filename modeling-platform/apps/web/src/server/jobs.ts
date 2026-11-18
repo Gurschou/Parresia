@@ -2,6 +2,7 @@ import { rm } from "node:fs/promises";
 import { eq, inArray } from "drizzle-orm";
 import { AnalysisError, analyzeTranscript, toAnalysisError, type AnalysisProgress } from "@bm/core";
 import { getDb, schema } from "@/db";
+import { analysesWithoutRun, markPending, runBeliefMatch } from "./belief-matches";
 
 /**
  * In-process job-kø til analyser (transskribering + Claude).
@@ -13,8 +14,9 @@ import { getDb, schema } from "@/db";
 
 type Update = Partial<typeof schema.analyses.$inferInsert>;
 
-const g = globalThis as typeof globalThis & { __bmJobs?: Map<string, AbortController> };
+const g = globalThis as typeof globalThis & { __bmJobs?: Map<string, AbortController>; __bmMatchJobs?: Map<string, Promise<void>> };
 const running = (g.__bmJobs ??= new Map());
+const matching = (g.__bmMatchJobs ??= new Map());
 
 async function update(id: string, patch: Update) {
   const db = await getDb();
@@ -134,6 +136,8 @@ export async function runAnalysisJob(id: string, signal?: AbortSignal): Promise<
       outputTokens: envelope.meta.output_tokens,
       completedAt: new Date(),
     });
+    // 3) Overbevisnings-match mod alle andre personer (kører videre i baggrunden).
+    enqueueBeliefMatch(id, row.ownerId);
   } catch (err) {
     await ticker.done();
     const e = err instanceof AnalysisError ? err : toAnalysisError(err);
@@ -164,6 +168,40 @@ export function isRunning(id: string): boolean {
   return running.has(id);
 }
 
+/**
+ * Lægger et overbevisnings-match i kø for en færdig analyse. Kørsler for samme
+ * bruger kører én ad gangen (hver kørsel læser hele biblioteket), og en ny
+ * anmodning for en analyse, der allerede kører, ignoreres.
+ */
+export function enqueueBeliefMatch(id: string, ownerId: string): Promise<void> {
+  const existing = matching.get(id);
+  if (existing) return existing;
+  const userKey = `user:${ownerId}`;
+  const previous = matching.get(userKey) ?? Promise.resolve();
+  const job = (async () => {
+    await markPending([{ id, ownerId }]).catch(() => {});
+    await previous.catch(() => {});
+    await runBeliefMatch(id);
+  })().finally(() => {
+    matching.delete(id);
+    if (matching.get(userKey) === job) matching.delete(userKey);
+  });
+  matching.set(id, job);
+  matching.set(userKey, job);
+  return job;
+}
+
+export function isMatching(id: string): boolean {
+  return matching.has(id);
+}
+
+/** Match alle færdige analyser, der endnu ikke er matchet (fx fra før funktionen fandtes). */
+export async function backfillBeliefMatches(userId: string): Promise<number> {
+  const missing = await analysesWithoutRun(userId);
+  for (const a of missing) void enqueueBeliefMatch(a.id, a.ownerId);
+  return missing.length;
+}
+
 /** Kaldes ved serverstart: genoptag jobs, der blev afbrudt af en genstart. */
 export async function resumePendingJobs(): Promise<number> {
   const db = await getDb();
@@ -172,5 +210,11 @@ export async function resumePendingJobs(): Promise<number> {
     .from(schema.analyses)
     .where(inArray(schema.analyses.status, ["queued", "transcribing", "analyzing"]));
   for (const { id } of stuck) enqueueAnalysis(id);
-  return stuck.length;
+  // Match-kørsler, der var i gang eller i kø, da serveren stoppede.
+  const interrupted = await db
+    .select({ id: schema.beliefMatchRuns.analysisId, ownerId: schema.beliefMatchRuns.ownerId })
+    .from(schema.beliefMatchRuns)
+    .where(inArray(schema.beliefMatchRuns.status, ["pending", "running"]));
+  for (const r of interrupted) void enqueueBeliefMatch(r.id, r.ownerId);
+  return stuck.length + interrupted.length;
 }
