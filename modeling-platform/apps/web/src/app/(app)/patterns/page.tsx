@@ -64,7 +64,7 @@ export default async function PatternsPage({ searchParams }: { searchParams: Pro
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat?.title ?? p.category}</div>
-                      <h3 className="mt-0.5 font-serif text-lg font-semibold leading-snug">{p.title}</h3>
+                      <h3 className="mt-0.5 text-[17px] leading-snug tracking-[-0.01em]">{p.title}</h3>
                     </div>
                     <DeletePatternButton id={p.id} />
                   </div>
@@ -118,7 +118,7 @@ export default async function PatternsPage({ searchParams }: { searchParams: Pro
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">{cat?.title}</div>
-                    <h3 className="mt-0.5 font-serif text-lg font-semibold leading-snug">{s.title}</h3>
+                    <h3 className="mt-0.5 text-[17px] leading-snug tracking-[-0.01em]">{s.title}</h3>
                     <p className="mt-1 text-sm text-muted-foreground">{s.description}</p>
                   </div>
                 </div>

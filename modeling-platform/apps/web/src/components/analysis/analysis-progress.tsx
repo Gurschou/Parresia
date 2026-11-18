@@ -79,7 +79,7 @@ export function AnalysisProgress({ id, initial, hasMedia }: { id: string; initia
         <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-negative-soft">
           <AlertTriangle className="size-6 text-negative" />
         </div>
-        <h2 className="text-2xl font-semibold">Analysen fejlede</h2>
+        <h2 className="text-2xl">Analysen fejlede</h2>
         <p className="mx-auto mt-3 max-w-lg text-muted-foreground text-pretty">{s.errorMessage ?? "Ukendt fejl."}</p>
         {s.errorCode && <p className="mt-2 font-mono text-xs text-muted-foreground">kode: {s.errorCode}</p>}
         <Button className="mt-6" onClick={retry} disabled={retrying}>
@@ -95,12 +95,12 @@ export function AnalysisProgress({ id, initial, hasMedia }: { id: string; initia
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
           <div className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Analyserer</div>
-          <h2 className="mt-1 text-2xl font-semibold">{s.stageMessage || "Arbejder…"}</h2>
+          <h2 className="mt-1 text-2xl">{s.stageMessage || "Arbejder…"}</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Du kan roligt forlade siden — analysen fortsætter i baggrunden. ({Math.floor(elapsed / 60)}:{String(elapsed % 60).padStart(2, "0")})
           </p>
         </div>
-        <span className="font-serif text-4xl font-semibold tabular-nums text-primary">{s.progress}%</span>
+        <span className="text-4xl font-bold tabular-nums tracking-[-0.03em] text-primary">{s.progress}%</span>
       </div>
       <Progress value={s.progress} className="h-2.5" />
       <ol className="mt-8 grid gap-3" style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}>

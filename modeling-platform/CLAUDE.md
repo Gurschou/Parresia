@@ -92,7 +92,7 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 - Next.js 16: `params`/`searchParams`/`cookies()` er async; `middleware` hedder `proxy` (bruges ikke — auth tjekkes i layouts og `withUser`). Læs `node_modules/next/dist/docs/` før du bruger nye Next-API'er.
 - Objekter (ikke komponenter) må ikke importeres fra `"use client"`-moduler ind i server components — de bliver proxies. Delte konstanter hører til i `@bm/core` eller ikke-client-moduler.
 - React-PDF 4.9: undgå arvet `lineHeight` på `Page` og dynamiske `render`-tekster i komponenter (sidetal forsvinder) — se kommentarer i `report/pdf-document.tsx`. `pdf-document.tsx` er browser-sikker (bruges af artifactet med indbyggede skrifter); `pdf.tsx` tilføjer Node-delen (skrifter fra disk, `renderPdf`).
-- UI: danske tekster, design-tokens i `apps/web/src/app/globals.css` (lys/mørk), diagramfarver `--series-1..8` i fast rækkefølge (V, A, K, O, G, Ad).
+- UI: danske tekster, design-tokens i `apps/web/src/app/globals.css` og `apps/artifact/src/styles.css` (samme værdier, lys/mørk). Mørk navigations-skinne på køligt papir. Tre typografiske stemmer: personens egne ord = `.said` (Literata kursiv) + `.marked` (tusch), analysen = Schibsted Grotesk, notation = IBM Plex Mono. Diagramfarver `--series-1..8` i fast rækkefølge (V, A, K, O, G, Ad, eksperter 7-8), valideret for farveblindhed i begge temaer: ændres de, så kør valideringen igen.
 - Tests: `pnpm test` (Vitest i core, web, cli). E2E: `pnpm e2e` (Playwright, kører i mock-mode).
 - Hemmeligheder kun via env. Commit aldrig `.env`.
 

@@ -23,12 +23,14 @@ import { ReportToc } from "./report-toc";
 
 function StatTile({ icon: Icon, label, value, hint }: { icon: React.ComponentType<{ className?: string }>; label: string; value: React.ReactNode; hint?: string }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        <Icon className="size-4" /> {label}
-      </div>
-      <div className="mt-2 font-serif text-3xl font-semibold tabular-nums">{value}</div>
-      {hint && <div className="mt-0.5 text-xs text-muted-foreground">{hint}</div>}
+    <div className="min-w-0 bg-card px-5 py-4">
+      <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+        <Icon className="size-4 shrink-0" /> <span className="truncate">{label}</span>
+      </dt>
+      <dd className="mt-1 flex items-baseline gap-2">
+        <span className="text-3xl font-bold tabular-nums tracking-[-0.03em]">{value}</span>
+        {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
+      </dd>
     </div>
   );
 }
@@ -51,9 +53,8 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
   return (
     <div>
       {/* Hero */}
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0 bg-aurora opacity-80" />
-        <div className="relative mx-auto max-w-7xl px-4 pb-8 pt-8 sm:px-8 lg:pt-10">
+      <section className="border-b">
+        <div className="mx-auto max-w-7xl px-4 pb-9 pt-7 sm:px-8 lg:pt-9">
           <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Link href="/analyses" className="hover:text-foreground">
               Analyser
@@ -63,30 +64,30 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
           </nav>
           <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-3xl">
-              <div className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-primary">Adfærdsmodel</div>
-              <h1 className="text-4xl font-semibold leading-[1.05] text-balance sm:text-5xl">{r.summary.subject}</h1>
-              <p className="mt-4 font-serif text-xl italic leading-snug text-foreground/80 text-pretty">{r.summary.result_modeled}</p>
+              <div className="eyebrow mb-3 text-primary">Adfærdsmodel</div>
+              <h1 className="text-[2.6rem] leading-none text-balance sm:text-6xl">{r.summary.subject}</h1>
+              <p className="mt-4 text-xl leading-snug text-muted-foreground text-pretty">{r.summary.result_modeled}</p>
               <div className="mt-5 flex flex-wrap gap-2">
                 {analysis.expert && (
-                  <Badge tone="outline" className="bg-card/70">
+                  <Badge tone="outline" className="bg-card">
                     <User /> <Link href={`/experts/${analysis.expert.id}`}>{analysis.expert.name}</Link>
                   </Badge>
                 )}
                 {analysis.project && (
-                  <Badge tone="outline" className="bg-card/70">
+                  <Badge tone="outline" className="bg-card">
                     <FolderKanban /> {analysis.project.name}
                   </Badge>
                 )}
-                <Badge tone="outline" className="bg-card/70">
+                <Badge tone="outline" className="bg-card">
                   <CalendarDays /> {formatDate(analysis.sessionDate ?? analysis.createdAt)}
                 </Badge>
                 {analysis.sourceType !== "text" && (
-                  <Badge tone="outline" className="bg-card/70">
+                  <Badge tone="outline" className="bg-card">
                     <Mic /> {analysis.sourceName || analysis.sourceType}
                     {analysis.mediaInfo?.durationSec ? ` · ${Math.round(analysis.mediaInfo.durationSec / 60)} min` : ""}
                   </Badge>
                 )}
-                <Badge tone="outline" className="bg-card/70">
+                <Badge tone="outline" className="bg-card">
                   <Cpu /> {analysis.model}
                   {meta?.provider === "mock" ? " (mock)" : ""}
                 </Badge>
@@ -99,12 +100,12 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
 
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-8">
         {/* Overblik */}
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <dl className="grid grid-cols-1 gap-px overflow-hidden rounded-xl border bg-border sm:grid-cols-2 xl:grid-cols-4">
           <StatTile icon={Workflow} label="Strategier" value={r.cognitive_strategies.strategies.length} hint={`${r.cognitive_strategies.strategies.filter((s) => s.transferable).length} overførbare`} />
           <StatTile icon={ShieldCheck} label="Styrkende overbevisninger" value={r.enabling_beliefs.beliefs.length} />
           <StatTile icon={ShieldAlert} label="Begrænsende overbevisninger" value={r.disenabling_beliefs.beliefs.length} />
-          <StatTile icon={Gauge} label="Næste spørgsmål" value={r.gaps_and_next_questions.next_questions.length} hint={`${r.gaps_and_next_questions.gaps.length} identificerede mangler`} />
-        </div>
+          <StatTile icon={Gauge} label="Næste spørgsmål" value={r.gaps_and_next_questions.next_questions.length} hint={`${r.gaps_and_next_questions.gaps.length} mangler i modellen`} />
+        </dl>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-3">
           <Card className="p-5">
@@ -150,22 +151,22 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
         <Card className="mt-4 overflow-hidden">
           <div className="grid lg:grid-cols-[1.4fr_1fr]">
             <div className="p-6 sm:p-8">
-              <h2 className="text-2xl font-semibold">Sammenfatning</h2>
+              <h2 className="text-2xl">Sammenfatning</h2>
               <p className="mt-3 text-[17px] leading-relaxed text-foreground/90 text-pretty">{r.summary.overview}</p>
               <p className="mt-4 text-sm text-muted-foreground">
                 <span className="font-semibold">Kildegrundlag:</span> {r.summary.source_quality}
               </p>
             </div>
             <div className="border-t bg-muted/40 p-6 sm:p-8 lg:border-l lg:border-t-0">
-              <h3 className="font-sans text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Nøgleindsigter</h3>
-              <ol className="mt-4 space-y-3">
+              <h3 className="eyebrow text-muted-foreground">Nøgleindsigter</h3>
+              <ul className="mt-4 space-y-3.5">
                 {r.summary.key_insights.map((k, i) => (
                   <li key={i} className="flex gap-3">
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{i + 1}</span>
+                    <span className="mt-[7px] size-2 shrink-0 rotate-45 bg-primary" />
                     <span className="leading-snug text-pretty">{k}</span>
                   </li>
                 ))}
-              </ol>
+              </ul>
             </div>
           </div>
         </Card>
@@ -190,11 +191,11 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
                   <section key={s.key} id={s.key} className="scroll-mt-6">
                     <Card className="p-6 sm:p-8">
                       <header className="mb-6 flex items-start gap-4">
-                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-secondary">
-                          <CategoryIcon name={cat.icon} className="size-5 text-primary" />
+                        <span className="flex size-11 shrink-0 items-center justify-center rounded-xl border bg-secondary">
+                          <CategoryIcon name={cat.icon} className="size-5 text-secondary-foreground" />
                         </span>
                         <div>
-                          <h2 className="text-2xl font-semibold">{s.title}</h2>
+                          <h2 className="text-2xl">{s.title}</h2>
                           <p className="mt-1 text-sm text-muted-foreground text-pretty">{s.description}</p>
                         </div>
                       </header>

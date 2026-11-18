@@ -20,8 +20,8 @@ export function PageHeader({
   return (
     <div className={cn("mb-8 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between", className)}>
       <div className="min-w-0">
-        {eyebrow && <div className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-primary">{eyebrow}</div>}
-        <h1 className="text-3xl font-semibold leading-tight text-balance sm:text-4xl">{title}</h1>
+        {eyebrow && <div className="eyebrow mb-3 text-primary">{eyebrow}</div>}
+        <h1 className="text-3xl leading-[1.05] text-balance sm:text-[2.6rem]">{title}</h1>
         {description && <p className="mt-2 max-w-2xl text-muted-foreground text-pretty">{description}</p>}
       </div>
       {actions && <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>}
@@ -47,7 +47,7 @@ export function EmptyState({
       <div className="mb-4 flex size-14 items-center justify-center rounded-2xl bg-secondary">
         <Icon className="size-6 text-primary" />
       </div>
-      <h3 className="text-xl font-semibold">{title}</h3>
+      <h3 className="text-xl">{title}</h3>
       {description && <p className="mt-2 max-w-md text-sm text-muted-foreground text-pretty">{description}</p>}
       {action && <div className="mt-6">{action}</div>}
     </div>

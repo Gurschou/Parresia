@@ -55,12 +55,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
         href="/analyses/new"
         onClick={onNavigate}
         className={cn(
-          "mb-3 flex items-center justify-center gap-2 rounded-xl bg-primary px-3 py-2.5 text-sm font-semibold text-primary-foreground shadow-sm shadow-primary/25 transition hover:bg-primary/90",
-          pathname === "/analyses/new" && "ring-2 ring-primary/30 ring-offset-2 ring-offset-sidebar",
+          "mb-5 flex items-center justify-center gap-2 rounded-lg px-3 py-2.5 text-sm font-semibold transition",
+          "bg-sidebar-foreground text-sidebar hover:bg-sidebar-foreground/90",
+          pathname === "/analyses/new" && "ring-2 ring-sidebar-foreground/30 ring-offset-2 ring-offset-sidebar",
         )}
       >
         <Plus className="size-4" /> Ny analyse
       </Link>
+      <div className="eyebrow mb-1 px-3 text-sidebar-muted/70">Arbejdsrum</div>
       {NAV.map((item) => {
         const active = isActive(pathname, item.href, "exact" in item ? item.exact : false);
         return (
@@ -70,11 +72,14 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-sidebar-accent hover:text-foreground",
-              active && "bg-sidebar-accent font-semibold text-foreground",
+              "group flex items-center gap-3 rounded-lg px-3 py-2 text-[14px] font-medium text-sidebar-muted transition-colors hover:bg-sidebar-accent/60 hover:text-sidebar-foreground",
+              active && "bg-sidebar-accent text-sidebar-foreground",
             )}
           >
-            <item.icon className={cn("size-[18px] transition-colors", active ? "text-primary" : "group-hover:text-foreground")} />
+            <item.icon
+              className="size-[17px] transition-colors"
+              style={active ? { color: "color-mix(in oklch, var(--primary) 55%, var(--sidebar-foreground))" } : undefined}
+            />
             {item.label}
           </Link>
         );
@@ -87,15 +92,15 @@ function UserMenu({ user, signOutAction }: { user: { name: string; email: string
   const { setTheme, theme } = useTheme();
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-xl p-2 text-left outline-none transition hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-ring/40">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-series-7 text-xs font-bold text-white">
+      <DropdownMenuTrigger className="flex w-full items-center gap-3 rounded-lg p-2 text-left text-sidebar-foreground outline-none transition hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-foreground/40">
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-sidebar-accent text-xs font-bold ring-1 ring-sidebar-border">
           {initials(user.name)}
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold">{user.name}</span>
-          <span className="block truncate text-xs text-muted-foreground">{user.email}</span>
+          <span className="block truncate text-xs text-sidebar-muted">{user.email}</span>
         </span>
-        <ChevronsUpDown className="size-4 text-muted-foreground" />
+        <ChevronsUpDown className="size-4 text-sidebar-muted" />
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-60">
         <DropdownMenuLabel>Tema</DropdownMenuLabel>
@@ -124,8 +129,8 @@ export function Sidebar({ user, signOutAction }: { user: { name: string; email: 
   return (
     <>
       {/* Desktop */}
-      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar lg:flex">
-        <div className="px-5 pb-6 pt-6">
+      <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col bg-sidebar lg:flex">
+        <div className="px-5 pb-8 pt-6">
           <Link href="/">
             <Logo />
           </Link>
@@ -139,12 +144,12 @@ export function Sidebar({ user, signOutAction }: { user: { name: string; email: 
       </aside>
 
       {/* Mobil */}
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-background/85 px-4 backdrop-blur lg:hidden">
+      <header className="sticky top-0 z-40 flex h-16 items-center justify-between bg-sidebar px-4 lg:hidden">
         <Link href="/">
           <Logo />
         </Link>
         <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-          <DialogPrimitive.Trigger className="rounded-lg p-2 hover:bg-muted" aria-label="Åbn menu">
+          <DialogPrimitive.Trigger className="rounded-lg p-2 text-sidebar-foreground hover:bg-sidebar-accent" aria-label="Åbn menu">
             <Menu className="size-5" />
           </DialogPrimitive.Trigger>
           <DialogPrimitive.Portal>

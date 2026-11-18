@@ -25,7 +25,7 @@ const COL = (i: number) => `var(--series-${i + 1})`;
 function Section({ title, description, children }: { title: string; description?: string; children: React.ReactNode }) {
   return (
     <Card className="p-6">
-      <h2 className="text-xl font-semibold">{title}</h2>
+      <h2 className="text-xl">{title}</h2>
       {description && <p className="mt-1 text-sm text-muted-foreground">{description}</p>}
       <div className="mt-5">{children}</div>
     </Card>
@@ -79,7 +79,7 @@ export default async function ComparePage({ searchParams }: { searchParams: Prom
               <span className="size-3 rounded-full" style={{ background: COL(i) }} />
               <span className="truncate text-xs font-semibold uppercase tracking-wider text-muted-foreground">{col.expert}</span>
             </div>
-            <div className="mt-1.5 line-clamp-2 font-serif text-lg font-semibold leading-snug group-hover:text-primary">{col.title}</div>
+            <div className="mt-1.5 line-clamp-2 text-[17px] font-bold leading-snug tracking-[-0.01em] group-hover:text-primary">{col.title}</div>
           </Link>
         ))}
       </div>

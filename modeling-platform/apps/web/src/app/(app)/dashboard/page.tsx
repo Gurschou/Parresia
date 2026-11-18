@@ -45,7 +45,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <EmptyState icon={BarChart3} title="Ingen data endnu" description="Dashboardet fyldes, når du har færdige analyser (med de valgte filtre)." />
       ) : (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+          <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-5">
             {[
               { label: "Analyser", value: d.totals.analyses, icon: FileText },
               { label: "Eksperter", value: d.totals.experts, icon: Users },
@@ -53,14 +53,14 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
               { label: "Styrkende", value: d.totals.enablingBeliefs, icon: ShieldCheck },
               { label: "Begrænsende", value: d.totals.disenablingBeliefs, icon: ShieldAlert },
             ].map((k) => (
-              <Card key={k.label} className="p-4">
-                <div className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                  {k.label} <k.icon className="size-4" />
-                </div>
-                <div className="mt-2 font-serif text-3xl font-semibold tabular-nums">{k.value}</div>
-              </Card>
+              <div key={k.label} className="min-w-0 bg-card px-5 py-4 last:col-span-2 lg:last:col-span-1">
+                <dt className="flex items-center gap-2 text-[13px] text-muted-foreground">
+                  <k.icon className="size-4 shrink-0" /> {k.label}
+                </dt>
+                <dd className="mt-1 text-3xl font-bold tabular-nums tracking-[-0.03em]">{k.value}</dd>
+              </div>
             ))}
-          </div>
+          </dl>
 
           <div className="grid gap-4 lg:grid-cols-2">
             <Panel title="VAKOG-fordeling" description={`Gennemsnit · primært ${REP_SYSTEM_LABEL[primary].toLowerCase()}`}>

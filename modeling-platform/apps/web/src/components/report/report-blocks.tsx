@@ -24,20 +24,15 @@ export interface BlockContext {
 
 export function Quote({ text, className }: { text: string; className?: string }) {
   return (
-    <blockquote
-      className={cn(
-        "border-l-2 border-primary/40 py-0.5 pl-3.5 font-serif text-[15px] italic leading-relaxed text-foreground/85",
-        className,
-      )}
-    >
-      “{text.trim()}”
+    <blockquote className={cn("said text-[15px] leading-[1.65] text-pretty", className)}>
+      <span className="marked">“{text.trim()}”</span>
     </blockquote>
   );
 }
 
 function ItemCard({ item, ctx }: { item: ReportItem; ctx: BlockContext }) {
   return (
-    <div className="group relative rounded-xl border bg-card p-4 transition hover:border-primary/25 hover:shadow-sm">
+    <div className="group relative min-w-0 rounded-xl border bg-card p-4 transition hover:border-primary/35">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 font-semibold leading-snug text-pretty">{item.title}</div>
         {ctx.savable && ctx.analysisId && (

@@ -38,7 +38,7 @@ export default async function AnalysisPage({ params }: { params: Promise<{ id: s
       </nav>
       <div className="mb-8 flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-semibold sm:text-4xl">{analysis.title}</h1>
+          <h1 className="text-3xl sm:text-4xl">{analysis.title}</h1>
           {analysis.expert && <p className="mt-1 text-muted-foreground">{analysis.expert.name}</p>}
         </div>
         <AnalysisActions id={analysis.id} title={analysis.title} completed={false} />

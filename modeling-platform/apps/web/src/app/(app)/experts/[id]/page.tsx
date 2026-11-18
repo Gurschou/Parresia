@@ -39,7 +39,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
   return (
     <div>
       <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0 bg-aurora opacity-70" />
+        
         <PageContainer className="relative pb-8">
           <nav className="mb-6 flex items-center gap-1.5 text-sm text-muted-foreground">
             <Link href="/experts" className="hover:text-foreground">
@@ -57,7 +57,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
                 {initials(expert.name)}
               </span>
               <div>
-                <h1 className="text-4xl font-semibold sm:text-5xl">{expert.name}</h1>
+                <h1 className="text-4xl sm:text-5xl">{expert.name}</h1>
                 <p className="mt-1 text-lg text-muted-foreground">{expert.role || "Ingen rolle angivet"}</p>
               </div>
             </div>
@@ -84,7 +84,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
       <PageContainer>
         {records.length === 0 ? (
           <Card className="p-8 text-center">
-            <h2 className="text-2xl font-semibold">Ingen færdige analyser endnu</h2>
+            <h2 className="text-2xl">Ingen færdige analyser endnu</h2>
             <p className="mt-2 text-muted-foreground">Analysér et interview med {expert.name} for at bygge profilen.</p>
             <Button asChild className="mt-5">
               <Link href={`/analyses/new?expertId=${expert.id}`}>Start første analyse</Link>
@@ -92,7 +92,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
           </Card>
         ) : (
           <>
-            <h2 className="mb-4 text-2xl font-semibold">
+            <h2 className="mb-4 text-2xl">
               Samlet profil <span className="font-sans text-base font-normal text-muted-foreground">· {records.length} {records.length === 1 ? "session" : "sessioner"}</span>
             </h2>
             <div className="grid gap-4 lg:grid-cols-3">
@@ -172,7 +172,7 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
           </>
         )}
 
-        <h2 className="mb-4 mt-10 text-2xl font-semibold">Sessioner</h2>
+        <h2 className="mb-4 mt-10 text-2xl">Sessioner</h2>
         <Card className="divide-y p-0">
           {analyses.map((a) => (
             <Link key={a.id} href={`/analyses/${a.id}`} className="flex items-center gap-4 px-5 py-4 transition hover:bg-muted/50">

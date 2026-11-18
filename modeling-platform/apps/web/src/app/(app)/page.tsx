@@ -1,25 +1,46 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, ArrowUpRight, FileText, Library, Sparkles, Users, Workflow } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Sparkles } from "lucide-react";
+import { REP_SYSTEMS, REP_SYSTEM_LABEL } from "@bm/core";
 import { PageContainer } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/analysis/status-badge";
 import { DistributionBar } from "@/components/report/overview-charts";
+import { EXAMPLE_SPECIMEN, Specimen, pickSpecimen, type SpecimenData } from "@/components/report/specimen";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { listAnalyses } from "@/server/analyses";
+import { getAnalysis, listAnalyses } from "@/server/analyses";
 import { getDashboard } from "@/server/dashboard";
 import { listExperts } from "@/server/experts";
 import { getPatternSuggestions, listPatterns } from "@/server/patterns";
 import { requireUser } from "@/server/session";
-import { relativeTime } from "@/lib/format";
+import { formatDate, initials, relativeTime } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Oversigt" };
 
-function greeting() {
-  const h = Number(new Intl.DateTimeFormat("da-DK", { hour: "numeric", timeZone: "Europe/Copenhagen" }).format(new Date()));
-  return h < 5 ? "God nat" : h < 10 ? "Godmorgen" : h < 12 ? "God formiddag" : h < 18 ? "God eftermiddag" : "God aften";
+/** Første færdige analyse med et fund, der viser vejen fra citat til strategi. */
+async function findSpecimen(userId: string, ids: string[]): Promise<SpecimenData | null> {
+  for (const id of ids.slice(0, 4)) {
+    const a = await getAnalysis(userId, id).catch(() => null);
+    const pick = pickSpecimen(a?.result);
+    if (a && pick) {
+      return {
+        quote: pick.quote,
+        strategy: pick.strategy,
+        expertName: a.expert?.name ?? a.result?.summary.subject ?? "Ukendt",
+        dateLabel: formatDate(a.sessionDate ?? a.createdAt, { day: "numeric", month: "short" }),
+        href: `/analyses/${a.id}`,
+      };
+    }
+  }
+  return null;
 }
+
+const SERIES = (name: string) => {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  return `var(--series-${(h % 8) + 1})`;
+};
 
 export default async function HomePage() {
   const user = await requireUser();
@@ -31,61 +52,63 @@ export default async function HomePage() {
     getPatternSuggestions(user.id),
   ]);
   const running = analyses.filter((a) => a.status !== "completed" && a.status !== "failed");
-  const firstName = user.name.split(" ")[0];
+  const specimen = (await findSpecimen(user.id, analyses.filter((a) => a.status === "completed").map((a) => a.id))) ?? EXAMPLE_SPECIMEN;
+  const primary = [...REP_SYSTEMS].sort((x, y) => dash.vakogAverage[y] - dash.vakogAverage[x])[0]!;
 
   return (
     <div>
-      <section className="relative overflow-hidden border-b">
-        <div className="absolute inset-0 bg-aurora" />
-        <div className="absolute inset-0 bg-grid opacity-40 [mask-image:linear-gradient(to_bottom,black,transparent)]" />
-        <PageContainer className="relative pb-10">
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">Oversigt</p>
-          <h1 className="mt-2 text-4xl font-semibold sm:text-5xl">
-            {greeting()}, <span className="italic">{firstName}</span>
-          </h1>
-          <p className="mt-3 max-w-2xl text-lg text-muted-foreground text-pretty">
-            {dash.totals.analyses
-              ? `Du har modelleret ${dash.totals.experts} ${dash.totals.experts === 1 ? "person" : "personer"} gennem ${dash.totals.analyses} analyser. Her er, hvad der sker.`
-              : "Start med at analysere et interview — så bygger platformen modeller, mønstre og indsigter op over tid."}
-          </p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Button asChild size="lg">
-              <Link href="/analyses/new">
-                <Sparkles /> Ny analyse
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/dashboard">
-                Se dashboard <ArrowRight />
-              </Link>
-            </Button>
+      <section className="border-b">
+        <PageContainer className="grid items-center gap-10 py-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)] lg:py-16">
+          <div className="min-w-0">
+            <div className="eyebrow text-primary">Advanced Behavioral Modeling</div>
+            <h1 className="mt-4 text-[2.6rem] leading-[0.98] sm:text-6xl">
+              Fra det, de siger,
+              <br />
+              til det, de gør.
+            </h1>
+            <p className="mt-6 max-w-xl text-[17px] leading-relaxed text-muted-foreground text-pretty">
+              {dash.totals.analyses
+                ? `${user.name.split(" ")[0]}, du har modelleret ${dash.totals.experts} ${dash.totals.experts === 1 ? "person" : "personer"} gennem ${dash.totals.analyses} ${dash.totals.analyses === 1 ? "analyse" : "analyser"}. Hvert fund peger tilbage på et ordret citat.`
+                : "Indsæt et interview eller upload en optagelse med en, der mestrer noget. Claude udtrækker strategier, overbevisninger, værdier, meta-programmer og VAKOG, og hvert fund peger tilbage på et ordret citat."}
+            </p>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <Button asChild size="lg">
+                <Link href="/analyses/new">
+                  <Sparkles /> Ny analyse
+                </Link>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/dashboard">
+                  Se mønstrene <ArrowRight />
+                </Link>
+              </Button>
+            </div>
           </div>
+          <Specimen data={specimen} />
         </PageContainer>
       </section>
 
       <PageContainer>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border bg-border lg:grid-cols-4">
           {[
-            { label: "Analyser", value: dash.totals.analyses, icon: FileText, href: "/analyses" },
-            { label: "Eksperter", value: experts.length, icon: Users, href: "/experts" },
-            { label: "Strategier fundet", value: dash.totals.strategies, icon: Workflow, href: "/dashboard" },
-            { label: "Mønstre i biblioteket", value: patterns.length, icon: Library, href: "/patterns" },
+            { label: "Analyser", value: dash.totals.analyses, href: "/analyses" },
+            { label: "Eksperter", value: experts.length, href: "/experts" },
+            { label: "Strategier fundet", value: dash.totals.strategies, href: "/dashboard" },
+            { label: "Mønstre i biblioteket", value: patterns.length, href: "/patterns" },
           ].map((k) => (
-            <Link key={k.label} href={k.href} className="group">
-              <Card className="p-5 transition group-hover:-translate-y-0.5 group-hover:border-primary/30">
-                <div className="flex items-center justify-between text-sm font-semibold text-muted-foreground">
-                  {k.label}
-                  <k.icon className="size-4" />
-                </div>
-                <div className="mt-3 font-serif text-4xl font-semibold tabular-nums">{k.value}</div>
-              </Card>
+            <Link key={k.label} href={k.href} className="group flex items-end justify-between gap-3 bg-card px-5 py-4 transition hover:bg-muted/60">
+              <div className="min-w-0">
+                <dt className="truncate text-[13px] text-muted-foreground">{k.label}</dt>
+                <dd className="mt-1 text-3xl font-bold tabular-nums tracking-[-0.03em]">{k.value}</dd>
+              </div>
+              <ArrowUpRight className="mb-1 size-4 shrink-0 text-muted-foreground opacity-0 transition group-hover:opacity-100" />
             </Link>
           ))}
-        </div>
+        </dl>
 
         {running.length > 0 && (
           <Card className="mt-6 p-5">
-            <h2 className="font-sans text-sm font-bold">I gang lige nu</h2>
+            <h2 className="text-base">I gang lige nu</h2>
             <div className="mt-3 divide-y">
               {running.map((a) => (
                 <Link key={a.id} href={`/analyses/${a.id}`} className="flex items-center gap-4 py-3 hover:opacity-80">
@@ -99,86 +122,98 @@ export default async function HomePage() {
           </Card>
         )}
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1.6fr_1fr]">
-          <Card className="p-0">
-            <div className="flex items-center justify-between p-5 pb-3">
-              <h2 className="text-xl font-semibold">Seneste analyser</h2>
+        <div className="mt-8 grid gap-8 lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
+          <section className="min-w-0">
+            <div className="mb-3 flex items-baseline justify-between">
+              <h2 className="text-xl">Seneste analyser</h2>
               <Link href="/analyses" className="text-sm font-semibold text-primary hover:underline">
-                Se alle
+                Alle analyser
               </Link>
             </div>
             {analyses.length === 0 ? (
-              <div className="px-5 pb-8 pt-2">
-                <ol className="grid gap-3 sm:grid-cols-3">
-                  {["Indsæt et transskript eller upload en optagelse", "Claude udtrækker den fulde adfærdsmodel", "Sammenlign eksperter og byg dit mønsterbibliotek"].map((t, i) => (
-                    <li key={t} className="rounded-xl border bg-muted/40 p-4 text-sm">
-                      <span className="mb-2 flex size-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{i + 1}</span>
-                      {t}
+              <Card className="p-6">
+                <ul className="grid gap-3 sm:grid-cols-3">
+                  {[
+                    ["Indsæt eller upload", "Et transskript, en tekstfil eller en lyd-/videooptagelse."],
+                    ["Claude modellerer", "Strategier, overbevisninger, værdier, meta-programmer og VAKOG."],
+                    ["Sammenlign og saml", "Fælles mønstre på tværs af eksperter i dit bibliotek."],
+                  ].map(([t, d]) => (
+                    <li key={t} className="rounded-lg border bg-muted/40 p-4 text-sm">
+                      <div className="font-semibold">{t}</div>
+                      <div className="mt-1 text-muted-foreground">{d}</div>
                     </li>
                   ))}
-                </ol>
+                </ul>
                 <Button asChild className="mt-5">
                   <Link href="/analyses/new">
                     Prøv med eksempel-interviewet <ArrowRight />
                   </Link>
                 </Button>
-              </div>
+              </Card>
             ) : (
-              <ul className="divide-y">
-                {analyses.map((a) => (
-                  <li key={a.id}>
-                    <Link href={`/analyses/${a.id}`} className="flex items-center gap-4 px-5 py-3.5 transition hover:bg-muted/50">
-                      <div className="min-w-0 flex-1">
-                        <div className="truncate font-semibold">{a.title}</div>
-                        <div className="mt-0.5 truncate text-sm text-muted-foreground">
-                          {a.expertName ?? "Ingen ekspert"} · {relativeTime(a.createdAt)}
+              <Card className="overflow-hidden p-0">
+                <ul className="divide-y">
+                  {analyses.map((a) => (
+                    <li key={a.id}>
+                      <Link href={`/analyses/${a.id}`} className="flex items-center gap-4 px-4 py-3.5 transition hover:bg-muted/50 sm:px-5">
+                        <span className="flex size-9 shrink-0 items-center justify-center rounded-lg text-[12px] font-bold text-white" style={{ background: SERIES(a.expertName ?? a.title) }}>
+                          {initials(a.expertName ?? a.title)}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="truncate font-semibold">{a.title}</div>
+                          <div className="mt-0.5 truncate text-sm text-muted-foreground">
+                            {a.expertName ?? "Ingen ekspert"} · {relativeTime(a.createdAt)}
+                          </div>
                         </div>
-                      </div>
-                      <StatusBadge status={a.status} />
-                      <ArrowUpRight className="size-4 text-muted-foreground" />
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+                        <StatusBadge status={a.status} />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </Card>
             )}
-          </Card>
+          </section>
 
-          <div className="space-y-6">
-            <Card className="p-5">
-              <h2 className="font-sans text-sm font-bold">Samlet VAKOG-profil</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Gennemsnit på tværs af alle færdige analyser</p>
-              <div className="mt-4">
+          <div className="flex min-w-0 flex-col gap-8">
+            <section>
+              <h2 className="mb-3 text-xl">Samlet VAKOG-profil</h2>
+              <Card className="p-5">
                 {dash.totals.analyses ? (
-                  <DistributionBar distribution={dash.vakogAverage} />
+                  <>
+                    <div className="mb-3 flex items-baseline justify-between gap-2 text-sm">
+                      <span className="text-muted-foreground">Gennemsnit af {dash.totals.analyses} analyser</span>
+                      <span className="font-semibold">{REP_SYSTEM_LABEL[primary]}</span>
+                    </div>
+                    <DistributionBar distribution={dash.vakogAverage} />
+                  </>
                 ) : (
-                  <div className="h-4 rounded-full bg-muted" />
+                  <>
+                    <p className="mb-3 text-sm text-muted-foreground">Vises, når din første analyse er færdig.</p>
+                    <div className="h-4 rounded-full bg-muted" />
+                  </>
                 )}
-              </div>
-            </Card>
-            <Card className="p-5">
-              <div className="flex items-center justify-between">
-                <h2 className="font-sans text-sm font-bold">Fælles mønstre</h2>
-                <Link href="/patterns?tab=forslag" className="text-xs font-semibold text-primary hover:underline">
-                  Se alle
+              </Card>
+            </section>
+            <section>
+              <div className="mb-3 flex items-baseline justify-between">
+                <h2 className="text-xl">Fælles mønstre</h2>
+                <Link href="/patterns?tab=forslag" className="text-sm font-semibold text-primary hover:underline">
+                  Alle mønstre
                 </Link>
               </div>
               {suggestions.length ? (
-                <ul className="mt-3 space-y-2.5">
+                <ul className="flex flex-col gap-2">
                   {suggestions.slice(0, 4).map((s) => (
-                    <li key={s.key} className="rounded-lg border bg-muted/30 px-3 py-2.5">
-                      <div className="text-sm font-semibold leading-snug">{s.title}</div>
-                      <div className="mt-0.5 text-xs text-muted-foreground">
-                        {s.expertCount} eksperter · {s.occurrences.length} forekomster
-                      </div>
+                    <li key={s.key} className="flex items-center justify-between gap-3 rounded-lg border bg-card px-4 py-3">
+                      <span className="min-w-0 text-sm font-semibold leading-snug">{s.title}</span>
+                      <span className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground">{s.expertCount} eksp.</span>
                     </li>
                   ))}
                 </ul>
               ) : (
-                <p className="mt-3 text-sm text-muted-foreground">
-                  Når du har analyseret mindst to eksperter, finder platformen automatisk mønstre, de har til fælles.
-                </p>
+                <p className="text-sm text-muted-foreground">Når du har analyseret mindst to eksperter, finder platformen automatisk mønstre, de har til fælles.</p>
               )}
-            </Card>
+            </section>
           </div>
         </div>
       </PageContainer>

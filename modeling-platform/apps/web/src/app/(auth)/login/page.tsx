@@ -12,7 +12,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       : null;
   return (
     <>
-      <h2 className="text-3xl font-semibold">Velkommen tilbage</h2>
+      <h2 className="text-3xl">Velkommen tilbage</h2>
       <p className="mb-8 mt-2 text-muted-foreground">Log ind for at fortsætte med dine modeller.</p>
       {demo && <DemoLoginButton email={demo.email} password={demo.password} callbackUrl={callbackUrl} />}
       <AuthForm mode="login" callbackUrl={callbackUrl} />

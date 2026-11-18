@@ -43,7 +43,7 @@ export default async function ExpertsPage() {
                       {initials(e.name)}
                     </span>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate font-serif text-lg font-semibold">{e.name}</div>
+                      <div className="truncate text-[17px] font-bold tracking-[-0.01em]">{e.name}</div>
                       <div className="truncate text-sm text-muted-foreground">{e.role || "Ingen rolle angivet"}</div>
                     </div>
                     <ArrowUpRight className="size-4 text-muted-foreground opacity-0 transition group-hover:opacity-100" />

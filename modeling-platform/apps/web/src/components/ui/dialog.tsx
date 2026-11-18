@@ -36,7 +36,7 @@ export function DialogFooter({ className, ...props }: React.ComponentProps<"div"
   return <div className={cn("flex flex-col-reverse gap-2 sm:flex-row sm:justify-end", className)} {...props} />;
 }
 export function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn("font-serif text-xl font-semibold", className)} {...props} />;
+  return <DialogPrimitive.Title className={cn("text-xl font-bold tracking-[-0.02em]", className)} {...props} />;
 }
 export function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
   return <DialogPrimitive.Description className={cn("text-sm text-muted-foreground", className)} {...props} />;

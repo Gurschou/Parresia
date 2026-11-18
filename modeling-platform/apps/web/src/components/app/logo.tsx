@@ -1,31 +1,36 @@
 import { cn } from "@/lib/utils";
 
-/** Logomærke: en TOTE-løkke (test → operate → test → exit) som to buede pile. */
+/** Mærket: en iris med de seks eye accessing-positioner, farvet efter sansesystem (V, A, K, Ad). */
 export function LogoMark({ className }: { className?: string }) {
+  const pts: [number, number, number][] = [
+    [6, 7, 1],
+    [18, 7, 1],
+    [3.6, 12, 2],
+    [20.4, 12, 2],
+    [6, 17, 3],
+    [18, 17, 6],
+  ];
   return (
-    <svg viewBox="0 0 32 32" className={cn("size-8", className)} aria-hidden>
-      <defs>
-        <linearGradient id="lm-g" x1="0" y1="0" x2="1" y2="1">
-          <stop offset="0" stopColor="var(--primary)" />
-          <stop offset="1" stopColor="var(--series-7)" />
-        </linearGradient>
-      </defs>
-      <rect width="32" height="32" rx="9" fill="url(#lm-g)" />
-      <path d="M9.5 16a6.5 6.5 0 0 1 11.6-4" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" />
-      <path d="M22.5 16a6.5 6.5 0 0 1-11.6 4" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" opacity="0.75" />
-      <path d="M21.6 8.6l-.3 3.6-3.5-.6" fill="none" stroke="white" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-      <circle cx="24.5" cy="16" r="1.6" fill="white" />
-    </svg>
+    <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-xl bg-sidebar-accent text-sidebar-foreground ring-1 ring-sidebar-border", className)}>
+      <svg viewBox="0 0 24 24" className="size-7" fill="none" aria-hidden>
+        <circle cx="12" cy="12" r="4.6" stroke="currentColor" strokeWidth="1.6" />
+        <circle cx="12" cy="12" r="1.7" fill="currentColor" />
+        {pts.map(([x, y, slot], i) => (
+          <circle key={i} cx={x} cy={y} r="1.25" fill={`var(--series-${slot})`} />
+        ))}
+      </svg>
+    </span>
   );
 }
 
-export function Logo({ className }: { className?: string }) {
+/** Logo til mørk baggrund (navigationen). `tone="ink"` bruges på lys baggrund. */
+export function Logo({ className, tone = "rail" }: { className?: string; tone?: "rail" | "ink" }) {
   return (
-    <div className={cn("flex items-center gap-2.5", className)}>
+    <div className={cn("flex items-center gap-3", className)}>
       <LogoMark />
       <div className="leading-none">
-        <div className="font-serif text-[17px] font-semibold tracking-tight">Parresia</div>
-        <div className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">Modeling Studio</div>
+        <div className={cn("text-[17px] font-extrabold tracking-[-0.02em]", tone === "rail" ? "text-sidebar-foreground" : "text-foreground")}>Parresia</div>
+        <div className={cn("mt-1 text-[10.5px] font-semibold uppercase tracking-[0.2em]", tone === "rail" ? "text-sidebar-muted" : "text-muted-foreground")}>Modeling Studio</div>
       </div>
     </div>
   );
