@@ -16,6 +16,13 @@ import {
   MATCH_KIND_LABEL,
   analyzeTranscript,
   buildInventory,
+  buildModelingReport,
+  buildModelingSource,
+  modelPerson,
+  BELIEF_LEVEL_LABEL,
+  CONFIDENCE_LABEL,
+  MAP_LAYER_LABEL,
+  type SessionInput,
   buildReport,
   genitive,
   matchBeliefs,
@@ -332,6 +339,103 @@ export function buildProgram(io: Io = defaultIo): Command {
       io.out(`\n${pc.bold(pc.magenta("Fælles"))}`);
       g.shared.forEach((m) => io.out(`  ≈ “${m.belief.statement}” ${pc.dim(`(${m.from.name})`)} · “${m.anchor.text}” ${pc.dim(`(${m.to.name})`)}`));
       if (!g.shared.length) io.out(pc.dim("  Ingen fælles overbevisninger."));
+    });
+
+  program
+    .command("model")
+    .description("Gustavs modellering: byg et modelleringskort over én person ud fra alle personens transskripter")
+    .argument("<transcripts...>", "transskripter af samme person (tekstfiler), nyeste først. En *.analysis.json ved siden af bruges som tidligere fund.")
+    .requiredOption("-n, --name <navn>", "personens navn")
+    .option("-d, --domain <domæne>", "rolle/domæne, fx 'Salgsdirektør'")
+    .option("-g, --goal <mål>", "resultatet, der ønskes modelleret")
+    .option("--self", "personen er dig selv (kortet skrives til 'du')")
+    .option("-o, --out <dir>", "outputmappe for rapporter")
+    .option("-f, --format <list>", "md,pdf,json — skriv kortet som filer", "")
+    .option("--mock", "brug mock-LLM (ingen API-nøgle, til test)")
+    .option("--offline", "kun det tekstbaserede kort (intet LLM-kald)")
+    .option("--json", "skriv kortet som JSON til stdout")
+    .action(async (files: string[], o) => {
+      const sessions: SessionInput[] = [];
+      for (const [i, file] of files.entries()) {
+        const abs = path.resolve(file);
+        if (!existsSync(abs)) throw new CliError(`Filen findes ikke: ${file}`, 2);
+        if (!isTextTranscriptFile(abs)) throw new CliError(`${file} er ikke et teksttransskript. Transskribér lyd/video med 'modeling-cli transcribe' først.`, 2);
+        const transcript = normalizeTranscriptFile(abs, await readFile(abs, "utf8"));
+        let result: AnalysisResult | null = null;
+        const sibling = `${abs.replace(/\.[^.]+$/, "")}.analysis.json`;
+        if (existsSync(sibling)) {
+          const v = validateAnalysis(JSON.parse(await readFile(sibling, "utf8")));
+          if (v.ok) result = v.result;
+        }
+        sessions.push({ analysisId: abs, title: path.basename(file), date: new Date(Date.now() - i * 1000), transcript, result });
+      }
+      const [target, ...others] = sessions;
+      const source = buildModelingSource({
+        person: { name: o.name, domain: o.domain ?? "", goal: o.goal ?? "", isSelf: !!o.self },
+        target: target!,
+        others,
+      });
+      const spin = spinner(io, `Modellerer ${o.name} ud fra ${sessions.length} ${sessions.length === 1 ? "samtale" : "samtaler"}`);
+      const run = await modelPerson(source, { llm: o.mock ? new MockLlmClient({ delayMs: 0 }) : undefined, useLlm: !o.offline });
+      const a = run.result.audit;
+      spin.succeed(`Modelleringskort færdigt (${run.source === "claude" ? "Claude" : "tekstbaseret"}): ${a.precision} % af fundene står på ordrette citater`);
+      if (run.meta.fallback_reason) io.err(pc.yellow(`  Claude kunne ikke svare (${run.meta.fallback_reason}); tekstbaseret kort brugt.`));
+
+      const formats = String(o.format || "")
+        .split(",")
+        .map((f) => f.trim())
+        .filter(Boolean);
+      if (formats.length) {
+        const base = path.join(path.resolve(o.out ?? path.dirname(path.resolve(files[0]!))), `modelleringskort-${o.name.toLowerCase().replace(/[^a-z0-9æøå]+/gi, "-")}`);
+        await mkdir(path.dirname(base), { recursive: true });
+        const doc = buildModelingReport(run.result, { model: run.meta.model || undefined, sourceLabel: run.source === "claude" ? "Claude" : "Tekstbaseret" });
+        if (formats.includes("json")) {
+          await writeFile(`${base}.json`, JSON.stringify({ source: run.source, meta: run.meta, ...run.result }, null, 2));
+          io.out(`${pc.green("✔")} ${base}.json`);
+        }
+        if (formats.includes("md")) {
+          await writeFile(`${base}.md`, renderMarkdown(doc));
+          io.out(`${pc.green("✔")} ${base}.md`);
+        }
+        if (formats.includes("pdf")) {
+          const { renderPdf } = await import("@bm/core/pdf");
+          await writeFile(`${base}.pdf`, await renderPdf(doc));
+          io.out(`${pc.green("✔")} ${base}.pdf`);
+        }
+      }
+      if (o.json) {
+        io.out(JSON.stringify({ source: run.source, meta: run.meta, ...run.result }, null, 2));
+        return;
+      }
+      const m = run.result.map;
+      const h = (t: string) => io.out(`\n${pc.bold(pc.magenta(t))}`);
+      if (m.core) io.out(`\n${pc.bold(m.core)}`);
+      if (m.leverage.point) {
+        h("Millimeteren");
+        io.out(`  ${m.leverage.point}`);
+        if (m.leverage.why) io.out(`  ${pc.dim(m.leverage.why)}`);
+      }
+      if (m.installation.focus) {
+        h("Første træk");
+        io.out(`  ${m.installation.focus}`);
+      }
+      h("Overbevisninger");
+      m.beliefs.forEach((b) => io.out(`  • ${b.statement} ${pc.dim(`(${BELIEF_LEVEL_LABEL[b.level]} · ${CONFIDENCE_LABEL[b.confidence]})`)}`));
+      if (!m.beliefs.length) io.out(pc.dim("  Ingen med belæg."));
+      if (m.syntax.steps.length) {
+        h(`Mental syntaks${m.syntax.name ? `: ${m.syntax.name}` : ""}`);
+        if (m.syntax.notation) io.out(`  ${pc.cyan(m.syntax.notation)}`);
+        m.syntax.steps.forEach((s, i) => io.out(`  ${i + 1}. ${s.instruction}${s.submodalities.length ? pc.dim(` [${s.submodalities.join(", ")}]`) : ""}`));
+      }
+      if (m.blind_spots.length) {
+        h("Blinde vinkler");
+        m.blind_spots.forEach((b) => io.out(`  ? ${b.question} ${pc.dim(`(${MAP_LAYER_LABEL[b.layer]})`)}`));
+      }
+      io.out(
+        pc.dim(
+          `\nPræcision: ${a.findings_with_evidence}/${a.findings_total} fund med ordret belæg · ${a.quotes_verified}/${a.quotes_total} citater fundet${a.quotes_removed ? ` · ${a.quotes_removed} fjernet` : ""}`,
+        ),
+      );
     });
 
   program

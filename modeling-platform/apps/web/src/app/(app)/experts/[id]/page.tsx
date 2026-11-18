@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronRight, Columns3, Puzzle, Sparkles } from "lucide-react";
+import { ChevronRight, Columns3, Puzzle, Sparkles, Fingerprint } from "lucide-react";
 import { HUMAN_NEEDS, HUMAN_NEED_LABEL, REP_SYSTEM_LABEL } from "@bm/core";
 import { PageContainer } from "@/components/app/page-header";
 import { StatusBadge } from "@/components/analysis/status-badge";
@@ -72,6 +72,13 @@ export default async function ExpertPage({ params }: { params: Promise<{ id: str
                 </Link>
               </Button>
               <SelfToggle expertId={expert.id} isSelf={expert.isSelf} />
+              {records.length > 0 && (
+                <Button asChild variant="outline">
+                  <Link href={`/modeling?person=${expert.id}`}>
+                    <Fingerprint /> Modelleringskort
+                  </Link>
+                </Button>
+              )}
               {records.length > 0 && (
                 <Button asChild variant="outline">
                   <Link href={`/beliefs?person=${expert.id}`}>

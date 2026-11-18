@@ -16,7 +16,7 @@ modeling-platform/                 pnpm-monorepo (Node ≥ 20, TypeScript strict
 │  ├─ src/analyzer/                analyzeTranscript(), coercion, typed fejl
 │  ├─ src/llm/                     Claude-klient, mock, rate-limiter, retry
 │  ├─ src/report/                  Rapportblokke → Markdown (markdown.ts) / PDF (pdf.tsx)
-│  ├─ src/insights/                VAKOG-leksikon, dashboard-aggregater, sammenligning, mønstre, overbevisnings-match (belief-match.ts)
+│  ├─ src/insights/                VAKOG-leksikon, dashboard-aggregater, sammenligning, mønstre, overbevisnings-match (belief-match.ts), modelleringskort (modeling-map.ts)
 │  ├─ src/transcription/           Whisper API · AssemblyAI · whisper.cpp · mock   (Node-only)
 │  ├─ src/media/                   ffmpeg: probe, udtræk/normalisér lyd, opdeling  (Node-only)
 │  └─ test/                        Vitest
@@ -54,6 +54,16 @@ Web og CLI kalder **præcis samme** `analyzeTranscript()` → identisk JSON-outp
    - `resolveMatches()` slår id'erne op lokalt og håndhæver reglerne. Det er den eneste vej fra modelsvar til gemte match.
    - Ved fejl bruges `heuristicMatches()` (tekstbaseret); mock-provideren svarer også med den.
    - Visning: `matchesForPerson()` deler op i ind/ud/fælles og fjerner dubletter på tværs af kørsler.
+6. Modelleringskort, Gustavs modellering (web: `server/modeling.ts`, startes af `jobs.ts` efter hver færdig analyse):
+   - `buildModelingSource()` samler personens samtaler (S1 = den nye) inden for et tegnbudget, de tidligere fund som hypoteser, og brugerens egen profil som "installatør", når personen er en anden.
+   - `modelPerson()` → Claude: `SYSTEM_PROMPT` + `buildModelingMessage()` (metoden, præcisionsreglerne og felterne) + structured output.
+   - `verifyModelingMap()` er den eneste vej fra modelsvar til gemt kort:
+     - hvert citat slås op ordret i personens egne replikker (`checkQuote`, interviewerens replikker tæller ikke);
+     - fund uden belæg sættes ned til lav sikkerhed;
+     - fysiologi uden belæg og submodaliteter, der ikke er personens egne ord, fjernes;
+     - `audit.precision` er andelen af fund med ordret belæg.
+   - Ved fejl bruges `heuristicModelingMap()` (tekstbaseret); mock-provideren svarer også med den.
+   - Rapport: `buildModelingReport()` → samme `ReportDocument`-blokke som analysen (Markdown, PDF, web, artifact).
 
 ## Sådan kaldes analysen
 
@@ -104,6 +114,11 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
   - `experts.is_self` markerer brugeren selv; højst én pr. bruger.
   - Begrænsende overbevisninger må kun optræde som "fælles", aldrig som noget, der gives videre.
   - Mock-analysens overbevisninger/værdier vælges fra banker i `testing/mock-analysis.ts` ud fra, hvad personen faktisk siger, så demo-personerne har forskellige fund.
+- Modelleringskort:
+  - Ét kort pr. analyse (`modeling_maps`), bygget af ALLE personens samtaler; det nyeste færdige kort er personens aktuelle model.
+  - Metoden ligger i `prompt/build-modeling-message.ts` (brugerbeskeden); `SYSTEM_PROMPT` ændres aldrig.
+  - Nye felter i kortet: tilføj dem i `ModelingMapSchema`, i `verifyModelingMap` (citat-tjek), i `heuristicModelingMap` og i `modelingSectionBlocks`.
+  - Hver analyse giver nu tre LLM-kald (analyse, match, modelleringskort). Testmiljøerne hæver derfor `LLM_REQUESTS_PER_MINUTE`.
 - Tests: `pnpm test` (Vitest i core, web, cli). E2E: `pnpm e2e` (Playwright, kører i mock-mode).
 - Hemmeligheder kun via env. Commit aldrig `.env`.
 
@@ -113,13 +128,14 @@ envelope.result.cognitive_strategies.strategies; // valideret, typed
 pnpm install
 cp .env.example .env            # sæt ANTHROPIC_API_KEY (eller LLM_PROVIDER=mock)
 pnpm db:migrate                 # opret/migrér databasen
-pnpm db:seed                    # demokonto demo@parresia.dk / demo1234 (mock-analyser, "Det er mig"-profil og match)
+pnpm db:seed                    # demokonto demo@parresia.dk / demo1234 (mock-analyser, "Det er mig"-profil, match og modelleringskort)
 pnpm dev                        # web på http://localhost:3000
 pnpm test                       # core + web-endpoints + CLI (Vitest)
 pnpm e2e                        # next build + Playwright end-to-end (mock)
 pnpm typecheck
 pnpm cli analyze examples/interview-mette.txt --mock   # CLI fra kildekoden
 pnpm cli match a.analysis.json b.analysis.json --mock   # overbevisnings-match begge veje
+pnpm cli model ny.txt aeldre.txt --name "Mette Holm" --mock --format md,pdf   # Gustavs modelleringskort
 pnpm artifact:build            # Claude Artifact-udgaven → apps/artifact/dist/parresia-modeling.html
 ```
 

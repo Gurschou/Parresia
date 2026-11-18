@@ -19,6 +19,7 @@ import {
   Puzzle,
   Sun,
   Users,
+  Fingerprint,
 } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ export const NAV = [
   { href: "/analyses", label: "Analyser", icon: FileText },
   { href: "/experts", label: "Eksperter", icon: Users },
   { href: "/compare", label: "Sammenlign", icon: Columns3 },
+  { href: "/modeling", label: "Modellering", icon: Fingerprint },
   { href: "/beliefs", label: "Overbevisnings-match", icon: Puzzle },
   { href: "/patterns", label: "Mønsterbibliotek", icon: Library },
   { href: "/dashboard", label: "Dashboard", icon: BarChart3 },

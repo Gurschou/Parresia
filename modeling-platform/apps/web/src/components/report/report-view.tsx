@@ -17,6 +17,7 @@ import { Card } from "@/components/ui/card";
 import { formatDate, formatNumber } from "@/lib/format";
 import { AnalysisActions } from "@/components/analysis/analysis-actions";
 import { AnalysisMatchPanel } from "@/components/beliefs/analysis-match-panel";
+import { AnalysisModelPanel } from "@/components/modeling/analysis-model-panel";
 import { CategoryIcon } from "./category-icon";
 import { DistributionBar, MetaProgramScale, NeedsRadar, VakogLegend } from "./overview-charts";
 import { ReportBlocks } from "./report-blocks";
@@ -171,6 +172,9 @@ export function ReportView({ analysis }: { analysis: AnalysisDetail & { result: 
             </div>
           </div>
         </Card>
+
+        {/* Gustavs modelleringskort over hele personens historik */}
+        <AnalysisModelPanel userId={analysis.ownerId} analysisId={analysis.id} />
 
         {/* Overbevisnings-match mod resten af biblioteket */}
         <AnalysisMatchPanel userId={analysis.ownerId} analysisId={analysis.id} />

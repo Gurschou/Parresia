@@ -28,6 +28,9 @@ export default defineConfig({
       DATABASE_URL: "memory://",
       LLM_PROVIDER: "mock",
       MOCK_DELAY_MS: "1500",
+      // Analyse + match + modelleringskort = tre mock-kald pr. analyse.
+      LLM_REQUESTS_PER_MINUTE: "1000",
+      LLM_MAX_CONCURRENCY: "4",
       TRANSCRIPTION_PROVIDER: "mock",
       MOCK_TRANSCRIPTION_DELAY_MS: "800",
       AUTH_SECRET: "e2e-secret-not-for-production",

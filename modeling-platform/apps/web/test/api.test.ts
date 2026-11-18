@@ -26,6 +26,10 @@ import * as expertRoute from "@/app/api/experts/[id]/route";
 import * as matchesRoute from "@/app/api/analyses/[id]/matches/route";
 import * as beliefsRoute from "@/app/api/beliefs/route";
 import * as backfillRoute from "@/app/api/beliefs/backfill/route";
+import * as modelRoute from "@/app/api/analyses/[id]/model/route";
+import * as modelExportRoute from "@/app/api/analyses/[id]/model/export/route";
+import * as modelingRoute from "@/app/api/modeling/route";
+import * as modelBackfillRoute from "@/app/api/modeling/backfill/route";
 import { DEMO_TRANSCRIPTS, SELF_DEMO_TRANSCRIPT } from "@bm/core/demo";
 
 const BASE = "http://test.local";
@@ -378,5 +382,109 @@ describe("overbevisnings-match", () => {
     expect(res.status).toBe(202);
     expect((await res.json()).queued).toBe(1);
     expect((await waitForMatch(analyses["Sara Lund"]!)).run.status).toBe("done");
+  });
+});
+
+describe("modelleringskort (Gustavs modellering)", () => {
+  let dana: { id: string; name: string; email: string };
+  const experts: Record<string, string> = {};
+  const ids: string[] = [];
+
+  async function waitForModel(id: string, timeoutMs = 30_000) {
+    const t0 = Date.now();
+    for (;;) {
+      const body = await (await modelRoute.GET(get(`/api/analyses/${id}/model`), ctx(id))).json();
+      if (body.map && (body.map.status === "done" || body.map.status === "failed")) return body;
+      if (Date.now() - t0 > timeoutMs) throw new Error(`timeout; model-status ${body.map?.status}`);
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+  async function analyse(name: string, transcript: string) {
+    const res = await analysesRoute.POST(json("/api/analyses", { transcript, expertId: experts[name] }), undefined);
+    const id = (await res.json()).id as string;
+    expect((await waitForStatus(id, ["completed", "failed"])).status).toBe("completed");
+    ids.push(id);
+    return { id, body: await waitForModel(id) };
+  }
+
+  it("modellerer personen automatisk ud fra alle samtalerne og efterprøver citaterne", async () => {
+    dana = await createUser("dana@example.com");
+    loginAs(dana);
+    for (const [name, role, isSelf] of [["Mig", "Coach", true], ["Mette Holm", "Salgsdirektør", false]] as const) {
+      const res = await expertsRoute.POST(json("/api/experts", { name, role, isSelf }), undefined);
+      experts[name] = (await res.json()).id;
+    }
+    const me = await analyse("Mig", SELF_DEMO_TRANSCRIPT.transcript);
+    expect(me.body.person).toMatchObject({ name: "Mig", isSelf: true });
+    expect(me.body.map).toMatchObject({ status: "done", source: "heuristic", sessionCount: 1 });
+
+    const [m1, m2] = DEMO_TRANSCRIPTS.filter((t) => t.expert === "Mette Holm");
+    const first = await analyse("Mette Holm", m1!.transcript);
+    expect(first.body.map.result.sessions).toHaveLength(1);
+    const second = await analyse("Mette Holm", m2!.transcript);
+    const r = second.body.map.result;
+    // Det nye kort bygger på begge Mettes samtaler, den nye først.
+    expect(r.sessions.map((s: { analysisId: string }) => s.analysisId)).toEqual([second.id, first.id]);
+    expect(r.audit.quotes_removed).toBe(0);
+    expect(r.audit.sessions_used).toBe(2);
+    expect(second.body.map.precision).toBe(r.audit.precision);
+    // Brugerens egen profil bruges til installationsplanens forventede modstand.
+    expect(r.map.installation.resistance).toMatch(/styr på det hele/);
+  });
+
+  it("visningen vælger dig som standard, kan skifte person og vise kortet over tid", async () => {
+    loginAs(dana);
+    const view = await (await modelingRoute.GET(get("/api/modeling"), undefined)).json();
+    expect(view.selected).toMatchObject({ name: "Mig", isSelf: true });
+    expect(view.map.result.person.name).toBe("Mig");
+    expect(view.activeRuns).toBe(0);
+
+    const mette = await (await modelingRoute.GET(get(`/api/modeling?person=${experts["Mette Holm"]}`), undefined)).json();
+    expect(mette.selected.name).toBe("Mette Holm");
+    expect(mette.history).toHaveLength(2);
+    expect(mette.map.analysisId).toBe(ids[2]);
+    const older = await (await modelingRoute.GET(get(`/api/modeling?analysis=${ids[1]}`), undefined)).json();
+    expect(older.selected.name).toBe("Mette Holm");
+    expect(older.map.analysisId).toBe(ids[1]);
+  });
+
+  it("eksporterer kortet som Markdown, PDF og JSON", async () => {
+    loginAs(dana);
+    const id = ids[2]!;
+    const md = await modelExportRoute.GET(get(`/api/analyses/${id}/model/export?format=md`), ctx(id));
+    expect(md.status).toBe(200);
+    const text = await md.text();
+    expect(text).toContain("# Modelleringskort: Mette Holm");
+    expect(text).toContain("Installationsplan (RPM)");
+    const pdf = await modelExportRoute.GET(get(`/api/analyses/${id}/model/export?format=pdf`), ctx(id));
+    expect(pdf.headers.get("content-type")).toBe("application/pdf");
+    expect(Buffer.from(await pdf.arrayBuffer()).subarray(0, 4).toString()).toBe("%PDF");
+    const js = await (await modelExportRoute.GET(get(`/api/analyses/${id}/model/export?format=json`), ctx(id))).json();
+    expect(js.audit.precision).toBeGreaterThan(0);
+  });
+
+  it("andre brugere kan hverken se, eksportere eller køre kortet (404)", async () => {
+    loginAs(bob);
+    const id = ids[2]!;
+    expect((await modelRoute.GET(get(`/api/analyses/${id}/model`), ctx(id))).status).toBe(404);
+    expect((await modelRoute.POST(json(`/api/analyses/${id}/model`, {}), ctx(id))).status).toBe(404);
+    expect((await modelExportRoute.GET(get(`/api/analyses/${id}/model/export?format=md`), ctx(id))).status).toBe(404);
+    const view = await (await modelingRoute.GET(get("/api/modeling"), undefined)).json();
+    expect(view.persons.some((p: { name: string }) => p.name === "Mette Holm")).toBe(false);
+  });
+
+  it("kan modellere igen og bygge kort for personer, der mangler et", async () => {
+    loginAs(dana);
+    const id = ids[0]!;
+    expect((await modelRoute.POST(json(`/api/analyses/${id}/model`, {}), ctx(id))).status).toBe(202);
+    expect((await waitForModel(id)).map.status).toBe("done");
+
+    const db = await getDb();
+    const { eq } = await import("drizzle-orm");
+    await db.delete(schema.modelingMaps).where(eq(schema.modelingMaps.analysisId, ids[0]!));
+    const res = await modelBackfillRoute.POST(json("/api/modeling/backfill", {}), undefined);
+    expect(res.status).toBe(202);
+    expect((await res.json()).queued).toBe(1);
+    expect((await waitForModel(ids[0]!)).map.status).toBe("done");
   });
 });

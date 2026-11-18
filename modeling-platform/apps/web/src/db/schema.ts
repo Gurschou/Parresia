@@ -1,5 +1,5 @@
 import { boolean, date, index, integer, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
-import type { AnalysisContext, AnalysisMeta, AnalysisResult } from "@bm/core";
+import type { AnalysisContext, AnalysisMeta, AnalysisResult, ModelingMapResult } from "@bm/core";
 
 const id = () =>
   text("id")
@@ -208,6 +208,35 @@ export const beliefMatches = pgTable(
   ],
 );
 
+/**
+ * Gustavs modelleringskort: ét kort pr. analyse, bygget af ALLE personens
+ * samtaler, da analysen blev færdig. Det nyeste færdige kort pr. person er
+ * personens aktuelle model.
+ */
+export const modelingMaps = pgTable(
+  "modeling_maps",
+  {
+    analysisId: text("analysis_id")
+      .primaryKey()
+      .references(() => analyses.id, { onDelete: "cascade" }),
+    ownerId: text("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    status: text("status", { enum: MATCH_RUN_STATUSES }).notNull().default("pending"),
+    source: text("source", { enum: ["claude", "heuristic"] }),
+    result: jsonb("result").$type<ModelingMapResult>(),
+    /** Fx hvorfor det tekstbaserede kort blev brugt i stedet for Claude. */
+    note: text("note").notNull().default(""),
+    model: text("model"),
+    precision: integer("precision").notNull().default(0),
+    sessionCount: integer("session_count").notNull().default(0),
+    inputTokens: integer("input_tokens").notNull().default(0),
+    outputTokens: integer("output_tokens").notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index("modeling_maps_owner_idx").on(t.ownerId, t.updatedAt)],
+);
+
 export type User = typeof users.$inferSelect;
 export type Project = typeof projects.$inferSelect;
 export type Expert = typeof experts.$inferSelect;
@@ -216,3 +245,4 @@ export type Pattern = typeof patterns.$inferSelect;
 export type PatternExample = typeof patternExamples.$inferSelect;
 export type BeliefMatchRow = typeof beliefMatches.$inferSelect;
 export type BeliefMatchRunRow = typeof beliefMatchRuns.$inferSelect;
+export type ModelingMapRow = typeof modelingMaps.$inferSelect;

@@ -15,4 +15,8 @@ export interface AppCtx {
   matching: string[];
   /** Matcher analysens person mod hele biblioteket (Claude når `useClaude`, ellers tekstbaseret). */
   runMatch: (analysis: StoredAnalysis, all: StoredAnalysis[], useClaude: boolean) => Promise<void>;
+  /** Analyser, hvis modelleringskort bygges lige nu. */
+  modeling: string[];
+  /** Gustavs modellering af analysens person ud fra alle samtalerne (Claude når `useClaude`). */
+  runModel: (analysis: StoredAnalysis, all: StoredAnalysis[], useClaude: boolean) => Promise<void>;
 }

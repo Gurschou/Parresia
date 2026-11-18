@@ -37,10 +37,10 @@ export interface Person extends PersonRef {
 
 export type StoredMatch = BeliefMatch & { id: string; runAnalysisId: string; source: MatchSource; createdAt: Date };
 
-const personKey = (expertId: string | null, name: string) => expertId ?? `anon:${name.trim().toLowerCase()}`;
+export const personKey = (expertId: string | null, name: string) => expertId ?? `anon:${name.trim().toLowerCase()}`;
 
 /** Færdige analyser → hvilken person de tilhører (læses frisk, så ekspert-skift slår igennem). */
-async function personIndex(userId: string) {
+export async function personIndex(userId: string) {
   const db = await getDb();
   const rows = await db
     .select({
@@ -72,7 +72,7 @@ async function personIndex(userId: string) {
   return index;
 }
 
-function groupPersons(index: Awaited<ReturnType<typeof personIndex>>): Person[] {
+export function groupPersons(index: Awaited<ReturnType<typeof personIndex>>): Person[] {
   const persons = new Map<string, Person>();
   for (const [analysisId, p] of index) {
     const cur = persons.get(p.key);

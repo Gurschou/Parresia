@@ -13,7 +13,7 @@ function who(name: string, isSelf: boolean) {
   return isSelf ? { obj: "dig", subj: "du", poss: "dine", Poss: "Dine" } : { obj: name, subj: name, poss: genitive(name), Poss: genitive(name) };
 }
 
-function Avatar({ name, className }: { name: string; className?: string }) {
+export function Avatar({ name, className }: { name: string; className?: string }) {
   return (
     <span aria-hidden className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg text-[11px] font-bold text-white", className)} style={{ background: `var(--series-${colorSlot(name)})` }}>
       {initials(name)}
@@ -113,7 +113,7 @@ function useAllMatches(ctx: AppCtx) {
   return React.useMemo(() => allMatches(analyses, matchRuns), [analyses, matchRuns]);
 }
 
-const isSelfName = (ctx: AppCtx, name: string) => !!ctx.store.settings.selfName && personKey(ctx.store.settings.selfName) === personKey(name);
+export const isSelfName = (ctx: AppCtx, name: string) => !!ctx.store.settings.selfName && personKey(ctx.store.settings.selfName) === personKey(name);
 
 /* ───────────────────────── "Det er mig" ───────────────────────── */
 

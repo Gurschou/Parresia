@@ -1,5 +1,7 @@
 import { heuristicMatches } from "../insights/belief-match";
+import { heuristicModelingMap } from "../insights/modeling-map";
 import { extractInventory } from "../prompt/build-belief-match-message";
+import { extractModelingSource } from "../prompt/build-modeling-message";
 import { generateMockAnalysis } from "../testing/mock-analysis";
 import type { LlmClient, LlmRequest, LlmResponse } from "./types";
 import { sleep } from "./retry";
@@ -16,10 +18,11 @@ export class MockLlmClient implements LlmClient {
   constructor(private readonly opts: { delayMs?: number } = {}) {}
 
   async complete(req: LlmRequest): Promise<LlmResponse> {
-    // Overbevisnings-match: svar med den tekstbaserede match i schema-form.
+    // Overbevisnings-match og modelleringskort: svar med den tekstbaserede udgave i schema-form.
     const inventory = extractInventory(req.userMessage);
-    if (inventory) {
-      const text = JSON.stringify(heuristicMatches(inventory));
+    const modeling = inventory ? null : extractModelingSource(req.userMessage);
+    if (inventory || modeling) {
+      const text = JSON.stringify(inventory ? heuristicMatches(inventory) : heuristicModelingMap(modeling!));
       if (this.opts.delayMs) await sleep(this.opts.delayMs / 2, req.signal);
       req.onText?.(text.length);
       return {

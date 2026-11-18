@@ -46,3 +46,7 @@ export { needsInText, NEED_WORDS } from "./insights/need-lexicon";
 export { buildBeliefMatchMessage } from "./prompt/build-belief-match-message";
 export { matchBeliefs, BELIEF_MATCH_API_JSON_SCHEMA } from "./analyzer/match-beliefs";
 export type { BeliefMatchRun, MatchBeliefsOptions } from "./analyzer/match-beliefs";
+export * from "./insights/modeling-map";
+export { buildModelingMessage, extractModelingSource } from "./prompt/build-modeling-message";
+export { modelPerson, parseModelingResponse, MODELING_API_JSON_SCHEMA } from "./analyzer/model-person";
+export type { ModelingRun, ModelPersonOptions, ModelingMapSourceKind } from "./analyzer/model-person";

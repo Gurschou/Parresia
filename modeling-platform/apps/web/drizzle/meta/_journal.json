@@ -15,6 +15,13 @@
       "when": 1794997929432,
       "tag": "0001_belief_matches",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795007048743,
+      "tag": "0002_modeling_maps",
+      "breakpoints": true
     }
   ]
 }

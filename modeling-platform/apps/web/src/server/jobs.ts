@@ -3,6 +3,7 @@ import { eq, inArray } from "drizzle-orm";
 import { AnalysisError, analyzeTranscript, toAnalysisError, type AnalysisProgress } from "@bm/core";
 import { getDb, schema } from "@/db";
 import { analysesWithoutRun, markPending, runBeliefMatch } from "./belief-matches";
+import { interruptedModeling, latestAnalysesWithoutMap, markModelingPending, runModeling } from "./modeling";
 
 /**
  * In-process job-kø til analyser (transskribering + Claude).
@@ -14,9 +15,14 @@ import { analysesWithoutRun, markPending, runBeliefMatch } from "./belief-matche
 
 type Update = Partial<typeof schema.analyses.$inferInsert>;
 
-const g = globalThis as typeof globalThis & { __bmJobs?: Map<string, AbortController>; __bmMatchJobs?: Map<string, Promise<void>> };
+const g = globalThis as typeof globalThis & {
+  __bmJobs?: Map<string, AbortController>;
+  __bmMatchJobs?: Map<string, Promise<void>>;
+  __bmModelJobs?: Map<string, Promise<void>>;
+};
 const running = (g.__bmJobs ??= new Map());
 const matching = (g.__bmMatchJobs ??= new Map());
+const modeling = (g.__bmModelJobs ??= new Map());
 
 async function update(id: string, patch: Update) {
   const db = await getDb();
@@ -136,8 +142,10 @@ export async function runAnalysisJob(id: string, signal?: AbortSignal): Promise<
       outputTokens: envelope.meta.output_tokens,
       completedAt: new Date(),
     });
-    // 3) Overbevisnings-match mod alle andre personer (kører videre i baggrunden).
+    // 3) Overbevisnings-match mod alle andre personer og 4) Gustavs modelleringskort
+    //    over hele personens historik (kører videre i baggrunden).
     enqueueBeliefMatch(id, row.ownerId);
+    enqueueModeling(id, row.ownerId);
   } catch (err) {
     await ticker.done();
     const e = err instanceof AnalysisError ? err : toAnalysisError(err);
@@ -195,6 +203,40 @@ export function isMatching(id: string): boolean {
   return matching.has(id);
 }
 
+/**
+ * Lægger et modelleringskort i kø for en færdig analyse. Kørsler for samme
+ * bruger kører én ad gangen, så to nye samtaler med samme person ikke
+ * modelleres samtidig med hver sin halve historik.
+ */
+export function enqueueModeling(id: string, ownerId: string): Promise<void> {
+  const existing = modeling.get(id);
+  if (existing) return existing;
+  const userKey = `user:${ownerId}`;
+  const previous = modeling.get(userKey) ?? Promise.resolve();
+  const job = (async () => {
+    await markModelingPending([{ id, ownerId }]).catch(() => {});
+    await previous.catch(() => {});
+    await runModeling(id);
+  })().finally(() => {
+    modeling.delete(id);
+    if (modeling.get(userKey) === job) modeling.delete(userKey);
+  });
+  modeling.set(id, job);
+  modeling.set(userKey, job);
+  return job;
+}
+
+export function isModeling(id: string): boolean {
+  return modeling.has(id);
+}
+
+/** Modellér hver person, der endnu ikke har et kort (ud fra personens nyeste analyse). */
+export async function backfillModeling(userId: string): Promise<number> {
+  const missing = await latestAnalysesWithoutMap(userId);
+  for (const a of missing) void enqueueModeling(a.id, a.ownerId);
+  return missing.length;
+}
+
 /** Match alle færdige analyser, der endnu ikke er matchet (fx fra før funktionen fandtes). */
 export async function backfillBeliefMatches(userId: string): Promise<number> {
   const missing = await analysesWithoutRun(userId);
@@ -216,5 +258,7 @@ export async function resumePendingJobs(): Promise<number> {
     .from(schema.beliefMatchRuns)
     .where(inArray(schema.beliefMatchRuns.status, ["pending", "running"]));
   for (const r of interrupted) void enqueueBeliefMatch(r.id, r.ownerId);
-  return stuck.length + interrupted.length;
+  const models = await interruptedModeling();
+  for (const r of models) void enqueueModeling(r.id, r.ownerId);
+  return stuck.length + interrupted.length + models.length;
 }

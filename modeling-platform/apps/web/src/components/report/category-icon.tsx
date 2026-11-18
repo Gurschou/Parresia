@@ -1,5 +1,14 @@
 import {
+  Activity,
+  Ban,
+  BadgeCheck,
   CircleHelp,
+  Crosshair,
+  Ear,
+  Fingerprint,
+  History,
+  Rocket,
+  Scale,
   Eye,
   HeartPulse,
   MessageSquareQuote,
@@ -23,6 +32,15 @@ const ICONS: Record<string, LucideIcon> = {
   eye: Eye,
   "scan-eye": ScanEye,
   "circle-help": CircleHelp,
+  fingerprint: Fingerprint,
+  activity: Activity,
+  scale: Scale,
+  history: History,
+  ear: Ear,
+  ban: Ban,
+  crosshair: Crosshair,
+  rocket: Rocket,
+  "badge-check": BadgeCheck,
 };
 
 export function CategoryIcon({ name, className }: { name: string; className?: string }) {

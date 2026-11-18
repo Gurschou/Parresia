@@ -124,4 +124,30 @@ describe("modeling-cli", () => {
     const same = capture();
     expect(await run(["match", files[0]!, files[0]!, "--offline"], same)).toBe(2);
   });
+
+  it("model: modelleringskort over én person ud fra flere transskripter", async () => {
+    const [m1, m2] = DEMO_TRANSCRIPTS.filter((t) => t.expert === "Mette Holm");
+    const newer = path.join(dir, "mette-2.txt");
+    const older = path.join(dir, "mette-1.txt");
+    writeFileSync(newer, m2!.transcript);
+    writeFileSync(older, m1!.transcript);
+    const io = capture();
+    expect(await run(["model", newer, older, "--name", "Mette Holm", "--mock", "--format", "md,pdf", "--out", dir], io)).toBe(0);
+    const out = io.stdout.join("\n");
+    expect(out).toContain("Millimeteren");
+    expect(out).toContain("Overbevisninger");
+    expect(out).toMatch(/Præcision: \d+\/\d+ fund med ordret belæg/);
+    expect(io.stderr.join("\n")).toContain("Modelleringskort færdigt");
+    expect(readFileSync(path.join(dir, "modelleringskort-mette-holm.md"), "utf8")).toContain("# Modelleringskort: Mette Holm");
+    expect(readFileSync(path.join(dir, "modelleringskort-mette-holm.pdf")).subarray(0, 5).toString()).toBe("%PDF-");
+
+    const json = capture();
+    expect(await run(["model", newer, older, "--name", "Mette Holm", "--offline", "--json"], json)).toBe(0);
+    const parsed = JSON.parse(json.stdout.join("\n"));
+    expect(parsed.source).toBe("heuristic");
+    expect(parsed.sessions).toHaveLength(2);
+    expect(parsed.audit.quotes_removed).toBe(0);
+
+    expect(await run(["model", path.join(dir, "findes-ikke.txt"), "--name", "X", "--offline"], capture())).toBe(2);
+  });
 });

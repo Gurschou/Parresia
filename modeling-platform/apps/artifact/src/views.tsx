@@ -18,6 +18,7 @@ import {
   Trash2,
   Users,
   Workflow,
+  Fingerprint,
 } from "lucide-react";
 import {
   CONVINCER_CHANNEL_LABEL,
@@ -357,6 +358,7 @@ export function NewAnalysis({ ctx }: { ctx: AppCtx }) {
       location.hash = `analyse-${id}`;
       // Overbevisnings-match mod hele biblioteket (kører videre i baggrunden).
       void ctx.runMatch(record, [record, ...ctx.store.analyses.filter((x) => x.id !== record.id)], mode === "claude" && !!ctx.sample);
+      void ctx.runModel(record, [record, ...ctx.store.analyses.filter((x) => x.id !== record.id)], mode === "claude" && !!ctx.sample);
     } catch (e) {
       if ((e as { code?: string })?.code !== "cancelled") setError(sampleErrorMessage(e));
     } finally {
@@ -638,6 +640,9 @@ export function ExpertProfile({ ctx, expertSlug, setSelected }: { ctx: AppCtx; e
           </div>
           <div className="flex flex-wrap gap-2">
             <SelfToggle ctx={ctx} name={name} />
+            <LinkButton href={`#model-${expertSlug}`} variant="outline">
+              <Fingerprint /> Modelleringskort
+            </LinkButton>
             <LinkButton href={`#match-${expertSlug}`} variant="outline">
               <Puzzle /> Overbevisnings-match
             </LinkButton>

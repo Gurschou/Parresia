@@ -14,6 +14,9 @@ export default defineConfig({
       DATABASE_URL: "memory://",
       LLM_PROVIDER: "mock",
       MOCK_DELAY_MS: "0",
+      // Hver analyse giver tre mock-kald (analyse, match, modelleringskort); undgå at ramme kvoten.
+      LLM_REQUESTS_PER_MINUTE: "1000",
+      LLM_MAX_CONCURRENCY: "4",
       TRANSCRIPTION_PROVIDER: "mock",
       MOCK_TRANSCRIPTION_DELAY_MS: "0",
       UPLOAD_DIR: path.join(os.tmpdir(), "bm-web-test-uploads"),

@@ -1,5 +1,14 @@
 import * as React from "react";
 import {
+  Activity,
+  Ban,
+  BadgeCheck,
+  Crosshair,
+  Ear,
+  Fingerprint,
+  History,
+  Rocket,
+  Scale,
   ArrowRight,
   BookmarkPlus,
   BookOpenText,
@@ -54,6 +63,7 @@ import { DistributionBar, MetaProgramScale, NeedsRadar, VakogLegend, repColorFor
 import type { StoredAnalysis, StoredPattern } from "./store";
 import type { AppCtx } from "./app-ctx";
 import { ReportMatchPanel } from "./beliefs";
+import { ReportModelPanel } from "./modeling";
 
 const ICONS: Record<string, LucideIcon> = {
   sparkles: Sparkles,
@@ -66,6 +76,15 @@ const ICONS: Record<string, LucideIcon> = {
   eye: Eye,
   "scan-eye": ScanEye,
   "circle-help": CircleHelp,
+  fingerprint: Fingerprint,
+  activity: Activity,
+  scale: Scale,
+  history: History,
+  ear: Ear,
+  ban: Ban,
+  crosshair: Crosshair,
+  rocket: Rocket,
+  "badge-check": BadgeCheck,
 };
 export function CategoryIcon({ name, className }: { name: string; className?: string }) {
   const I = ICONS[name] ?? Sparkles;
@@ -328,7 +347,7 @@ export function ReportBlocks({ blocks, ctx }: { blocks: ReportBlock[]; ctx: Bloc
   );
 }
 
-function Toc({ sections }: { sections: { key: string; title: string; icon: string; count: number }[] }) {
+export function Toc({ sections }: { sections: { key: string; title: string; icon: string; count: number }[] }) {
   const [active, setActive] = React.useState(sections[0]?.key);
   React.useEffect(() => {
     const els = sections.map((s) => document.getElementById(`sec-${s.key}`)).filter(Boolean) as HTMLElement[];
@@ -607,6 +626,7 @@ export function ReportView({ ctx, analysis: a }: { ctx: AppCtx; analysis: Stored
           </div>
         </Card>
 
+        <ReportModelPanel ctx={ctx} analysis={a} />
         <ReportMatchPanel ctx={ctx} analysis={a} />
 
         <div className="mt-10 grid gap-10 lg:grid-cols-[220px_minmax(0,1fr)]">

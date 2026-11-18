@@ -3,7 +3,7 @@ import { z } from "zod";
 import { getDb, schema } from "@/db";
 import type { Analysis } from "@/db/schema";
 import { HttpError, notFound } from "./http";
-import { cancelAnalysis, enqueueAnalysis, enqueueBeliefMatch } from "./jobs";
+import { cancelAnalysis, enqueueAnalysis, enqueueBeliefMatch, enqueueModeling } from "./jobs";
 import { assertWithinQuota } from "./quota";
 import { consumeUpload } from "./uploads";
 
@@ -224,9 +224,10 @@ export async function updateAnalysis(userId: string, id: string, raw: unknown) {
   if ((raw as Record<string, unknown>).projectId !== undefined) patch.projectId = input.projectId;
   if (input.sessionDate !== undefined) patch.sessionDate = input.sessionDate;
   await db.update(schema.analyses).set(patch).where(eq(schema.analyses.id, id));
-  // Ny person bag analysen → overbevisnings-matchet skal laves om.
+  // Ny person bag analysen → overbevisnings-matchet og modelleringskortet skal laves om.
   if (patch.expertId !== undefined && patch.expertId !== before.expertId && before.status === "completed") {
     void enqueueBeliefMatch(id, userId);
+    void enqueueModeling(id, userId);
   }
   return getAnalysis(userId, id);
 }

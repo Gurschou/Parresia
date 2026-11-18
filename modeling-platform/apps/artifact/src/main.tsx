@@ -1,20 +1,23 @@
 import * as React from "react";
 import { createRoot } from "react-dom/client";
-import { BarChart3, Cloud, Columns3, FileText, HardDrive, LayoutGrid, Library, Loader2, Menu, Moon, Puzzle, Sparkles, Sun, Users, X } from "lucide-react";
+import { BarChart3, Cloud, Columns3, FileText, Fingerprint, HardDrive, LayoutGrid, Library, Loader2, Menu, Moon, Puzzle, Sparkles, Sun, Users, X } from "lucide-react";
 import { cn } from "./lib";
 import { useCap, type DownloadsCap, type SampleFn } from "./runtime";
 import { useStore, type StoredAnalysis } from "./store";
 import { BeliefMatchPage } from "./beliefs";
 import { runBeliefMatch } from "./match";
+import { ModelingPage } from "./modeling";
+import { runModeling } from "./model";
 import { EmptyState, LinkButton, useToast } from "./ui";
 import { ReportView } from "./report";
 import { AnalysesList, Compare, Dashboard, ExpertProfile, Experts, NewAnalysis, Overview, Patterns } from "./views";
 import type { AppCtx } from "./app-ctx";
 
 /* Hash-ruter (kun simple navne): #oversigt, #ny-analyse, #analyser, #analyse-<id>,
-   #eksperter, #ekspert-<slug>, #match, #match-<slug>, #sammenlign, #moenstre, #dashboard */
+   #eksperter, #ekspert-<slug>, #model, #model-<slug>, #match, #match-<slug>, #sammenlign, #moenstre, #dashboard */
 type Route =
-  | { name: "oversigt" | "ny-analyse" | "analyser" | "eksperter" | "match" | "sammenlign" | "moenstre" | "dashboard" }
+  | { name: "oversigt" | "ny-analyse" | "analyser" | "eksperter" | "model" | "match" | "sammenlign" | "moenstre" | "dashboard" }
+  | { name: "model-person"; slug: string }
   | { name: "analyse"; id: string }
   | { name: "ekspert"; slug: string }
   | { name: "match-person"; slug: string };
@@ -24,7 +27,8 @@ function parseHash(): Route {
   if (h.startsWith("analyse-")) return { name: "analyse", id: h.slice(8) };
   if (h.startsWith("ekspert-")) return { name: "ekspert", slug: h.slice(8) };
   if (h.startsWith("match-")) return { name: "match-person", slug: h.slice(6) };
-  const simple = ["ny-analyse", "analyser", "eksperter", "match", "sammenlign", "moenstre", "dashboard"] as const;
+  if (h.startsWith("model-")) return { name: "model-person", slug: h.slice(6) };
+  const simple = ["ny-analyse", "analyser", "eksperter", "model", "match", "sammenlign", "moenstre", "dashboard"] as const;
   return { name: (simple as readonly string[]).includes(h) ? (h as (typeof simple)[number]) : "oversigt" };
 }
 
@@ -46,6 +50,7 @@ const NAV = [
   { key: "ny-analyse", label: "Ny analyse", icon: Sparkles, match: ["ny-analyse"] },
   { key: "analyser", label: "Analyser", icon: FileText, match: ["analyser", "analyse"] },
   { key: "eksperter", label: "Eksperter", icon: Users, match: ["eksperter", "ekspert"] },
+  { key: "model", label: "Modellering", icon: Fingerprint, match: ["model", "model-person"] },
   { key: "match", label: "Overbevisnings-match", icon: Puzzle, match: ["match", "match-person"] },
   { key: "sammenlign", label: "Sammenlign", icon: Columns3, match: ["sammenlign"] },
   { key: "moenstre", label: "Mønstre", icon: Library, match: ["moenstre"] },
@@ -143,6 +148,7 @@ function App() {
   const [selected, setSelected] = React.useState<string[]>([]);
   const [menuOpen, setMenuOpen] = React.useState(false);
   const [matching, setMatching] = React.useState<string[]>([]);
+  const [modeling, setModeling] = React.useState<string[]>([]);
 
   React.useEffect(() => {
     let alive = true;
@@ -173,6 +179,19 @@ function App() {
     }
   };
 
+  const runModel = async (analysis: StoredAnalysis, all: StoredAnalysis[], useClaude: boolean) => {
+    setModeling((m) => (m.includes(analysis.id) ? m : [...m, analysis.id]));
+    try {
+      const run = await runModeling(analysis, all, store.settings.selfName, { sample: useClaude ? sample : null });
+      await store.saveModelRun(run);
+      toast(`Modelleringskort klar for ${analysis.expertName}: ${run.result.audit.precision} % belagt`, "positive");
+    } catch (e) {
+      if ((e as { code?: string })?.code !== "cancelled") toast("Modelleringskortet kunne ikke gemmes.", "negative");
+    } finally {
+      setModeling((m) => m.filter((x) => x !== analysis.id));
+    }
+  };
+
   const ctx: AppCtx = {
     store,
     toast,
@@ -180,6 +199,8 @@ function App() {
     capsReady,
     matching,
     runMatch,
+    modeling,
+    runModel,
     canDownload: !!downloads,
     download: async (filename, data) => {
       if (!downloads) return;
@@ -237,6 +258,12 @@ function App() {
       break;
     case "ekspert":
       page = <ExpertProfile ctx={ctx} expertSlug={route.slug} setSelected={setSelected} />;
+      break;
+    case "model":
+      page = <ModelingPage ctx={ctx} />;
+      break;
+    case "model-person":
+      page = <ModelingPage ctx={ctx} personSlug={route.slug} />;
       break;
     case "match":
       page = <BeliefMatchPage ctx={ctx} />;

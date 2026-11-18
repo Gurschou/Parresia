@@ -1,5 +1,5 @@
 import * as React from "react";
-import { DEMO_TRANSCRIPTS, countVakogPredicates, type AnalysisResult, type BeliefMatch, type LexiconCounts, type MatchSource } from "./lib";
+import { DEMO_TRANSCRIPTS, countVakogPredicates, type AnalysisResult, type BeliefMatch, type LexiconCounts, type MatchSource, type ModelingMapResult } from "./lib";
 import { EXAMPLE_RESULTS, EXAMPLE_SOURCES } from "./examples";
 import { useCap, type Db } from "./runtime";
 
@@ -54,6 +54,16 @@ export interface StoredMatchRun {
   createdAt: string;
 }
 
+/** Gustavs modelleringskort for én analyse (bygget af alle personens samtaler). */
+export interface StoredModelRun {
+  analysisId: string;
+  personKey: string;
+  source: "claude" | "heuristic";
+  note: string;
+  result: ModelingMapResult;
+  createdAt: string;
+}
+
 export interface Settings {
   /** Navnet på den person i biblioteket, der er brugeren selv ("Det er mig"). */
   selfName: string;
@@ -88,6 +98,7 @@ interface LocalData {
   patterns: StoredPattern[];
   matches: StoredMatchRun[];
   settings: Settings;
+  models: StoredModelRun[];
 }
 const EMPTY_SETTINGS: Settings = { selfName: "" };
 
@@ -96,12 +107,12 @@ function readLocal(): LocalData {
     const raw = window.localStorage.getItem(LOCAL_KEY);
     if (raw) {
       const p = JSON.parse(raw);
-      return { analyses: p.analyses ?? [], patterns: p.patterns ?? [], matches: p.matches ?? [], settings: { ...EMPTY_SETTINGS, ...p.settings } };
+      return { analyses: p.analyses ?? [], patterns: p.patterns ?? [], matches: p.matches ?? [], models: p.models ?? [], settings: { ...EMPTY_SETTINGS, ...p.settings } };
     }
   } catch {
     /* blokeret lager: tom start */
   }
-  return { analyses: [], patterns: [], matches: [], settings: EMPTY_SETTINGS };
+  return { analyses: [], patterns: [], matches: [], models: [], settings: EMPTY_SETTINGS };
 }
 function writeLocal(d: LocalData): boolean {
   try {
@@ -123,6 +134,7 @@ export function useStore() {
   const [own, setOwn] = React.useState<StoredAnalysis[]>([]);
   const [patterns, setPatterns] = React.useState<StoredPattern[]>([]);
   const [matchRuns, setMatchRuns] = React.useState<StoredMatchRun[]>([]);
+  const [modelRuns, setModelRuns] = React.useState<StoredModelRun[]>([]);
   const [settings, setSettings] = React.useState<Settings>(EMPTY_SETTINGS);
   const [stale, setStale] = React.useState(false);
   const ref = React.useRef<{ db: Db; uid: string } | null>(null);
@@ -147,6 +159,7 @@ export function useStore() {
             const a: StoredAnalysis[] = [];
             const p: StoredPattern[] = [];
             const m: StoredMatchRun[] = [];
+            const mm: StoredModelRun[] = [];
             let st = EMPTY_SETTINGS;
             for (const d of snap.docs) {
               const v = d.data() as Record<string, unknown> | undefined;
@@ -154,11 +167,13 @@ export function useStore() {
               if (v.kind === "analysis") a.push(v.value as StoredAnalysis);
               else if (v.kind === "pattern") p.push(v.value as StoredPattern);
               else if (v.kind === "match") m.push(v.value as StoredMatchRun);
+              else if (v.kind === "model") mm.push(v.value as StoredModelRun);
               else if (v.kind === "settings") st = { ...EMPTY_SETTINGS, ...(v.value as Settings) };
             }
             setOwn(a);
             setPatterns(p.sort((x, y) => y.createdAt.localeCompare(x.createdAt)));
             setMatchRuns(m);
+            setModelRuns(mm);
             setSettings(st);
           },
           () => {
@@ -168,6 +183,7 @@ export function useStore() {
             setOwn(l.analyses);
             setPatterns(l.patterns);
             setMatchRuns(l.matches);
+            setModelRuns(l.models);
             setSettings(l.settings);
             setBackend("local");
           },
@@ -178,6 +194,7 @@ export function useStore() {
         setOwn(l.analyses);
         setPatterns(l.patterns);
         setMatchRuns(l.matches);
+        setModelRuns(l.models);
         setSettings(l.settings);
         setBackend(writeLocal(l) ? "local" : "memory");
       }
@@ -190,8 +207,8 @@ export function useStore() {
   }, []);
 
   // Seneste lokale tilstand, så hver skrivning gemmer det hele (kun uden db).
-  const local = React.useRef<LocalData>({ analyses: [], patterns: [], matches: [], settings: EMPTY_SETTINGS });
-  local.current = { analyses: own, patterns, matches: matchRuns, settings };
+  const local = React.useRef<LocalData>({ analyses: [], patterns: [], matches: [], models: [], settings: EMPTY_SETTINGS });
+  local.current = { analyses: own, patterns, matches: matchRuns, models: modelRuns, settings };
   const persistLocal = React.useCallback((patch: Partial<LocalData>) => {
     local.current = { ...local.current, ...patch };
     if (!ref.current) writeLocal(local.current);
@@ -220,6 +237,7 @@ export function useStore() {
       if (ref.current) {
         await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`a-${id}`).delete();
         await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`m-${id}`).delete().catch(() => {});
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`mm-${id}`).delete().catch(() => {});
       } else {
         setOwn((cur) => {
           const next = cur.filter((c) => c.id !== id);
@@ -229,6 +247,11 @@ export function useStore() {
         setMatchRuns((cur) => {
           const next = cur.filter((m) => m.analysisId !== id);
           persistLocal({ matches: next });
+          return next;
+        });
+        setModelRuns((cur) => {
+          const next = cur.filter((m) => m.analysisId !== id);
+          persistLocal({ models: next });
           return next;
         });
       }
@@ -277,6 +300,21 @@ export function useStore() {
     [persistLocal],
   );
 
+  const saveModelRun = React.useCallback(
+    async (x: StoredModelRun) => {
+      if (ref.current) {
+        await ref.current.db.collection(`data/users/${ref.current.uid}`).doc(`mm-${x.analysisId}`).set({ kind: "model", value: JSON.parse(JSON.stringify(x)) });
+      } else {
+        setModelRuns((cur) => {
+          const next = [x, ...cur.filter((c) => c.analysisId !== x.analysisId)];
+          persistLocal({ models: next });
+          return next;
+        });
+      }
+    },
+    [persistLocal],
+  );
+
   const saveSettings = React.useCallback(
     async (x: Settings) => {
       if (ref.current) {
@@ -291,7 +329,7 @@ export function useStore() {
   );
 
   const analyses = React.useMemo(() => [...own, ...EXAMPLES].sort(byDateDesc), [own]);
-  return { backend, stale, analyses, own, patterns, matchRuns, settings, saveAnalysis, deleteAnalysis, savePattern, deletePattern, saveMatchRun, saveSettings };
+  return { backend, stale, analyses, own, patterns, matchRuns, modelRuns, settings, saveAnalysis, deleteAnalysis, savePattern, deletePattern, saveMatchRun, saveModelRun, saveSettings };
 }
 
 export type Store = ReturnType<typeof useStore>;

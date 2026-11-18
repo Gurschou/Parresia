@@ -13,7 +13,7 @@ Analysen udtrækker:
 - **eye accessing cues**
 - **mangler og de næste spørgsmål**
 
-Ét system med syv dele:
+Ét system med otte dele:
 
 | | |
 |---|---|
@@ -24,8 +24,11 @@ Analysen udtrækker:
 | 5. **CLI** | `modeling-cli analyze transcript.txt` / `audio.mp3` / `video.mp4` |
 | 6. **Dashboard** | Meta-programmer, VAKOG, værdier, behov og overbevisninger over tid og på tværs af eksperter |
 | 7. **Overbevisnings-match** | Hver ny analyse matches automatisk mod alle andre personer, begge veje: hvilke overbevisninger der passer til dig, og hvilke af dine der passer til andre |
+| 8. **Modelleringskort** | Gustavs modellering: hver person modelleres ud fra alle sine samtaler (overbevisninger, mental syntaks, fysiologi, behov, regler, referenceoplevelser, millimeteren og en RPM-installationsplan), og hvert citat slås op ordret i transskripterne |
 
 ![Rapport](docs/screenshots/report.jpg)
+
+![Modelleringskort](docs/screenshots/modeling.jpg)
 
 ![Overbevisnings-match](docs/screenshots/beliefs.jpg)
 
@@ -48,7 +51,7 @@ cd modeling-platform
 pnpm install
 cp .env.example apps/web/.env.local     # udfyld ANTHROPIC_API_KEY (se nedenfor)
 pnpm db:migrate                          # opretter databasen (PGlite, ingen installation)
-pnpm db:seed                             # valgfrit: demokonto med 3 eksperter, din egen profil og 5 analyser
+pnpm db:seed                             # valgfrit: demokonto med 3 eksperter, din egen profil, 5 analyser, match og modelleringskort
 pnpm dev                                 # → http://localhost:3000
 ```
 
@@ -136,6 +139,42 @@ Hver gang en analyse er færdig, sammenligner platformen personens overbevisning
   - Matchet kører i baggrunden, én bruger ad gangen, og afbrudte kørsler genoptages ved genstart.
   - Ældre analyser kan matches med ét klik.
 
+### Modelleringskort (Gustavs modellering)
+
+Når en analyse er færdig, modelleres personen igen ud fra **alle** personens samtaler (den nye først, de øvrige nyeste først). Metoden er Gustavs: modelleringskortet, dybdeprofilen og strategi-udledningen samlet i ét kort.
+
+- **Kortets lag:**
+  - **Kernen:** én sætning om, hvad personen er bygget op omkring.
+  - **De tre døre:**
+    - **Overbevisninger** i første person, med niveau (identitet, evne …) og "siger og gør"-tjek.
+    - **Mental syntaks** trin for trin, med V/A/K/Ad-kanal, submodaliteter med personens egne ord og TOTE.
+    - **Fysiologi** med opskriften på top og fald.
+  - **Sprogmønstre** ordret.
+  - **De to dominerende behov.**
+  - **Regler og standarder.**
+  - **Referenceoplevelser:** formativ, kapacitet, fare og den manglende reference.
+  - **Sådan lander det hos personen:** chunk size, retning og convincer.
+  - **Det, du ikke skal kopiere.**
+  - **Spændingen og millimeteren.**
+  - **Installationsplan (RPM):** resultat, formål, højst tre handlinger, ét fokus og mestringstempo.
+  - **Blinde vinkler.**
+- **Præcision håndhæves lokalt** (`verifyModelingMap`), ikke kun i prompten:
+  - **Citater:** hvert citat slås op ordret i personens egne replikker. Citater, der ikke står der, eller som intervieweren sagde, fjernes.
+  - **Konfidens:** fund uden verificeret belæg sættes ned til lav sikkerhed (Gustavs konfidensregel: høj = direkte citat eller gentaget mønster).
+  - **Fysiologi:** fysiologi uden belæg fjernes, da kropssprog aldrig udledes af tekst.
+  - **Submodaliteter:** submodaliteter, der ikke er personens egne ord, fjernes.
+  - **Tomme felter:** opskrifter og den formative reference uden belæg tømmes og bliver til spørgsmål under blinde vinkler.
+  - **Præcisionsgrad:** hvert kort viser, hvor stor en andel af fundene der står på ordrette citater, og hvilke samtaler mønstrene går igen i.
+- **Installationsplanen:**
+  - **"Det er mig":** er du markeret, skrives kortet til dig.
+  - **Rollemodel:** modellerer du en anden, skrives planen til dig, og dine egne begrænsende overbevisninger bruges som forventet modstand.
+- **Samme regler som analysen:** uændret `SYSTEM_PROMPT`, metoden og transskripterne i brugerbeskeden, structured output og lokal validering. Kan Claude ikke svare, bygges et tekstbaseret kort, og det står på kortet.
+- **Hvor du ser det:**
+  - siden *Modellering* (vælg person, se kortet over tid, download PDF/Markdown);
+  - et felt i hver rapport;
+  - knappen *Modelleringskort* på ekspertprofilen;
+  - `modeling-cli model`.
+
 ### Tilføj en ny analysekategori
 
 Én ny fil i `packages/core/src/categories/` plus én linje i `registry.ts`. Schema, prompt, rapport (MD, PDF og web), dashboard-tal og "mangler"-mål følger automatisk med. Se [`CLAUDE.md`](CLAUDE.md).
@@ -160,6 +199,9 @@ modeling-cli report <x.analysis.json>    # (gen)skab Markdown/PDF fra en gemt an
 modeling-cli validate <x.analysis.json>  # schema-validering, exit-kode 1 ved fejl
 modeling-cli match <mig.analysis.json> <andre.analysis.json…> [--mock] [--offline] [--json]
                                          # overbevisninger, der passer begge veje
+modeling-cli model <ny.txt> [ældre.txt…] --name <navn> [--goal] [--domain] [--self]
+                   [--format md,pdf,json] [--out dir] [--mock] [--offline] [--json]
+                                         # Gustavs modelleringskort over én person (alle samtaler)
 modeling-cli schema                      # udskriv JSON-schemaet
 modeling-cli doctor                      # tjek nøgler, ffmpeg og providers
 ```
@@ -186,6 +228,10 @@ Alle endpoints kræver login (Auth.js-session). Fejl har formen `{ "error": { "c
 | `GET/POST` | `/api/analyses/:id/matches` | Analysens overbevisnings-match (status og resultat) · kør det igen (**202**) |
 | `GET` | `/api/beliefs?person=<nøgle>` | Alle match for én person (standard: dig selv) + overblik over alle personer |
 | `POST` | `/api/beliefs/backfill` | Match færdige analyser, der endnu ikke er matchet (**202**) |
+| `GET/POST` | `/api/analyses/:id/model` | Analysens modelleringskort (status og indhold) · modellér igen (**202**) |
+| `GET` | `/api/analyses/:id/model/export?format=pdf\|md\|json` | Modelleringskortet som fil |
+| `GET` | `/api/modeling?person=<nøgle>&analysis=<id>` | Personer og det aktuelle kort (standard: dig selv) + kortet over tid |
+| `POST` | `/api/modeling/backfill` | Modellér hver person, der endnu ikke har et kort (**202**) |
 | `PATCH` | `/api/experts/:id` `{ isSelf: true }` | Markér eksperten som dig selv (kun én ad gangen) |
 | `GET` | `/api/compare?ids=a,b[,c,d]` | Side-om-side-sammenligning |
 | `GET` | `/api/dashboard?projectId=&expertId=` | Aggregerede mønstre |
@@ -194,9 +240,10 @@ Alle endpoints kræver login (Auth.js-session). Fejl har formen `{ "error": { "c
 ## Tests
 
 ```bash
-pnpm test          # 83 Vitest-tests: core (schema, prompt, analyzer, SDK-request, rate limit, PDF,
-                   # transskribering med ffmpeg), web-endpoints (rigtige route-handlere + PGlite), CLI
-pnpm e2e           # Playwright mod produktionsbuildet i mock-mode (9 scenarier)
+pnpm test          # 128 Vitest-tests: core (schema, prompt, analyzer, SDK-request, rate limit, PDF,
+                   # transskribering med ffmpeg, match, modelleringskort og citat-verifikation),
+                   # web-endpoints (rigtige route-handlere + PGlite), CLI
+pnpm e2e           # Playwright mod produktionsbuildet i mock-mode (11 scenarier)
 pnpm typecheck
 ```
 
@@ -222,6 +269,10 @@ docker compose up --build
   - Med Claude, når analysen er lavet med Claude; ellers tekstbaseret.
   - Samme inventar, brugerbesked og lokale validering som web-appen.
   - "Det er mig" gemmes privat sammen med analyserne.
+- **Modelleringskort** efter hver ny analyse, over alle personens samtaler:
+  - Med Claude på det grundige niveau (`complex`), når analysen er lavet med Claude; ellers tekstbaseret.
+  - Samme brugerbesked og lokale citat-verifikation som web-appen.
+  - Siden *Modellering* og et felt i hver rapport; kortet kan hentes som PDF og Markdown.
 - **Lagring** privat pr. bruger i artifactets database (`data/users/<id>/…`). Uden for claude.ai falder den tilbage til browserens lager.
 
 ```bash

@@ -11,6 +11,7 @@ import { DEMO_TRANSCRIPTS, SELF_DEMO_TRANSCRIPT } from "@bm/core/demo";
 import { closeDb, getDb, schema } from "./index";
 import { hashPassword } from "../server/password";
 import { runBeliefMatch } from "../server/belief-matches";
+import { runModeling } from "../server/modeling";
 
 const EMAIL = process.env.SEED_EMAIL ?? "demo@parresia.dk";
 const PASSWORD = process.env.SEED_PASSWORD ?? "demo1234";
@@ -76,5 +77,13 @@ for (const t of transcripts) {
 for (const id of analysisIds) await runBeliefMatch(id, undefined, { llm });
 const matchCount = (await db.select().from(schema.beliefMatches)).filter((m) => m.ownerId === user!.id).length;
 console.log(`✓ Overbevisnings-match: ${matchCount} match på tværs af ${experts.size} personer`);
+
+// Gustavs modelleringskort efter hver analyse, ældste først (så det nyeste kort bygger på hele historikken).
+const chronological = (await db.select({ id: schema.analyses.id, createdAt: schema.analyses.createdAt, ownerId: schema.analyses.ownerId }).from(schema.analyses))
+  .filter((a) => a.ownerId === user!.id)
+  .sort((a, b) => +a.createdAt - +b.createdAt);
+for (const a of chronological) await runModeling(a.id, undefined, { llm });
+const maps = (await db.select().from(schema.modelingMaps)).filter((m) => m.ownerId === user!.id && m.status === "done");
+console.log(`✓ Modelleringskort: ${maps.length} kort, gennemsnitlig præcision ${Math.round(maps.reduce((n, m) => n + m.precision, 0) / Math.max(1, maps.length))} %`);
 await closeDb();
 console.log(`\nDemokonto klar → ${EMAIL} / ${PASSWORD}`);

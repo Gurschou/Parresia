@@ -115,6 +115,30 @@ test("overbevisnings-match: rapporten matcher mod biblioteket, og siden samler d
   await expect(page.getByText("Vil du se, hvad der passer til dig?")).toBeVisible();
 });
 
+test("modelleringskort: rapporten viser kernen, og siden har hele kortet", async () => {
+  await page.goto("/modeling");
+  await expect(page.getByRole("heading", { level: 1, name: "Hvordan er personen skruet sammen?" })).toBeVisible();
+  await page.getByRole("navigation", { name: "Vælg person" }).getByText("Mette Holm").click();
+  await expect(page).toHaveURL(/\/modeling\?person=/);
+  // Kortet bygges i baggrunden efter analysen; siden opdaterer sig selv.
+  await expect(page.getByRole("heading", { level: 2, name: "Installationsplan (RPM)" })).toBeVisible({ timeout: 30_000 });
+  for (const h of ["Overbevisninger", "Mental syntaks", "Fysiologi og tilstand", "Blinde vinkler", "Præcision"]) {
+    await expect(page.getByRole("heading", { level: 2, name: h, exact: true })).toBeVisible();
+  }
+  await expect(page.getByText("Millimeteren").first()).toBeVisible();
+  const href = await page.getByRole("link", { name: "PDF" }).getAttribute("href");
+  const pdf = await page.request.get(href!);
+  expect(pdf.headers()["content-type"]).toBe("application/pdf");
+  const md = await page.request.get(href!.replace("format=pdf", "format=md"));
+  expect(await md.text()).toContain("# Modelleringskort: Mette Holm");
+
+  // Rapporten har et felt med kernen og et link til hele kortet.
+  const analysisId = href!.split("/")[3]!;
+  await page.goto(`/analyses/${analysisId}`);
+  await expect(page.getByRole("heading", { level: 2, name: "Modelleringskort" })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Åbn hele kortet/ })).toBeVisible({ timeout: 30_000 });
+});
+
 test("sammenligning og dashboard viser data på tværs af analyser", async () => {
   await page.goto("/analyses");
   const boxes = page.getByRole("checkbox");

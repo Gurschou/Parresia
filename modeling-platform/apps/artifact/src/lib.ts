@@ -34,6 +34,19 @@ export {
   type PersonRecord,
 } from "../../../packages/core/src/insights/belief-match";
 export { buildBeliefMatchMessage } from "../../../packages/core/src/prompt/build-belief-match-message";
+export {
+  ModelingMapSchema,
+  buildModelingSource,
+  verifyModelingMap,
+  heuristicModelingMap,
+  buildModelingReport,
+  MODELING_SECTIONS,
+  type ModelingMap,
+  type ModelingMapResult,
+  type ModelingSource,
+  type SessionInput,
+} from "../../../packages/core/src/insights/modeling-map";
+export { buildModelingMessage } from "../../../packages/core/src/prompt/build-modeling-message";
 export { BELIEF_TYPE_LABEL } from "../../../packages/core/src/categories/beliefs";
 export { generateMockAnalysis } from "../../../packages/core/src/testing/mock-analysis";
 export { SAMPLE_TRANSCRIPT } from "../../../packages/core/src/testing/sample-transcript";
